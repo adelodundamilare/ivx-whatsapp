@@ -1,0 +1,21 @@
+{% extends 'base.html' %} {% block content %}
+
+<h1>Hello, {{ name }}!</h1>
+<p>Your email verification code is</p>
+
+<br />
+<div style="text-align: center; margin: 30px 0">
+  <h2 style="letter-spacing: 5px; font-size: 32px">{{ reset_code }}</h2>
+</div>
+
+<br />
+<p>
+  Your email verification code will expire after 30 minutes, kindly use
+  promptly.
+</p>
+
+<br />
+<p>Thank you,</p>
+<p>The Team.</p>
+
+{% endblock %}
