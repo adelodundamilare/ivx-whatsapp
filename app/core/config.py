@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "IVX WhatsApp Assistant"
@@ -9,9 +8,13 @@ class Settings(BaseSettings):
     # ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     # REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    WHATSAPP_TOKEN: str
+    GRAPH_API_TOKEN: str
+    WEBHOOK_VERIFY_TOKEN: str
+    WHATSAPP_BUSINESS_ACCOUNT_ID: str
+
     BUBBLE_API_KEY: str
     BUBBLE_API_URL: str
+    OPENAI_API_KEY: str
 
     # Database Configuration
     # DATABASE_HOST: str
