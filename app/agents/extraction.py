@@ -1,3 +1,4 @@
+import asyncio
 import json
 import traceback
 from typing import Dict
@@ -13,46 +14,53 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 class ExtractionAgent(BaseAgent):
     async def process(self, message: str, intent: Intent) -> Dict:
-        prompt = self._create_extraction_prompt(message, intent)
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Extract the following information in JSON format"},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.3
-        )
+        max_retries = 3
+        retry_delay = 2  # seconds
 
-        try:
-            content = response.choices[0].message.content
-
-            if not content:
-                print("Content is empty")
-                return {}
-
-            if isinstance(content, dict):
-                return content
-
-            if isinstance(content, str):
-                content = content.strip()
-
+        for attempt in range(max_retries):
             try:
-                # print(content, 'content >>>>>>>>>>>>>>>>>>>>>')
-                return json.loads(content)
-            except json.JSONDecodeError as e:
-                try:
-                    content = content.replace("'", '"')
-                    # print(content, 'content 2 >>>>>>>>>>>>>>>>>>>>>')
-                    return json.loads(content)
-                except json.JSONDecodeError:
-                    print(f"Failed to parse message {message} with type: {type(content)} as JSON even after quote replacement")
+                prompt = self._create_extraction_prompt(message, intent)
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "Extract the following information in JSON format"},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3
+                )
+
+                content = response.choices[0].message.content
+
+                if not content:
+                    print("Content is empty")
                     return {}
 
-            return content
-        except (json.JSONDecodeError, ValueError) as e:
-            print(f"Error parsing extraction response: {str(e)}")
-            traceback.print_exc()
-            return {}
+                if isinstance(content, dict):
+                    return content
+
+                if isinstance(content, str):
+                    content = content.strip()
+
+                try:
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    try:
+                        content = content.replace("'", '"')
+                        return json.loads(content)
+                    except json.JSONDecodeError:
+                        print(f"Failed to parse message {message} with type: {type(content)} as JSON")
+                        raise  # Re-raise to trigger retry
+
+            except Exception as e:
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    print(f"Attempt {attempt + 1} failed. Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Double the delay for next retry
+                else:
+                    print(f"All {max_retries} attempts failed. Final error: {str(e)}")
+                    return {}
+
+        return {}
 
     def _create_extraction_prompt(self, message: str, intent: Intent) -> str:
         base_prompt = f"Message: {message}\n\Request for the following information extract the response in JSON format."
@@ -63,7 +71,6 @@ class ExtractionAgent(BaseAgent):
             - patient_name: The name of the patient
             - procedure_type: Type of medical procedure or consultation needed
             - preferred_date: Preferred appointment date
-            - preferred_time: Preferred time of day
             - symptoms: Any symptoms mentioned
             - insurance_info: Any insurance information provided
             - special_requirements: Any special needs or requirements mentioned
@@ -103,7 +110,6 @@ class ExtractionAgent(BaseAgent):
 
             Optional fields:
             - preferred_dates: Any specific dates mentioned
-            - preferred_timeframe: Preferred time of day or time range
             - doctor_preference: If any specific doctor is mentioned
             - urgency_level: Any indication of urgency in the request
             """

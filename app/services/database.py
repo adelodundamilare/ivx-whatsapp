@@ -16,22 +16,31 @@ logger = setup_logger("database_api", "database.log")
 bubble_api_key=settings.BUBBLE_API_KEY
 bubble_url=settings.BUBBLE_API_URL
 
-async def create_appointment(data: Dict) -> Dict:
-    try:
+class DateTimeEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()  # Use ISO format for datetimes
+        return json.JSONEncoder.default(self, obj)
 
+async def create_appointment(data: Dict):
+    try:
+        json_data = json.dumps(data, cls=DateTimeEncoder)
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{bubble_url}/appointments",
                 headers={"Authorization": f"Bearer {bubble_api_key}"},
-                json={**data.dict(), **data}
+                content=json_data
             )
 
-            if response.status_code != 200:
-                raise AppointmentError("Failed to create appointment")
+            # print(bubble_url, 'bubble_url')
+            # print(json_data, 'json_data')
+            # print(response, 'response >>>>>>>>')
 
-            appointment_data = response.json()
+            if response.status_code not in (200, 201):
+                error_message = response.text or "Failed to create appointment"
+                raise AppointmentError(f"Failed to create appointment: {error_message}")
 
-            return appointment_data
+            return True
 
     except Exception as e:
         logger.error(f"Error: {str(e)}")

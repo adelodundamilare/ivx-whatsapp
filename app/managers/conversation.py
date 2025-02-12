@@ -22,23 +22,23 @@ class ConversationManager:
 
     async def handle_conversation(self, phone_number: str, message: str) -> str:
         try:
-            # Get or create conversation state
             state = state_manager.conversation_state
-
             state.interaction_count += 1
 
-            # intent = state.current_intent
-            # if not intent or intent == Intent.UNKNOWN:
-            #     intent = await self.intent_agent.process(message)
-
             intent = await self.intent_agent.process(message)
-
             state.current_intent = intent
+            state.phone_number = phone_number
+
+            if state.confirmation_pending:
+                state.current_intent = Intent.CREATE_APPOINTMENT
+
+            if state.modification_pending:
+                state.current_intent = Intent.EDIT_APPOINTMENT
 
             response = await self._handle_state_based_response(message)
 
             state.last_interaction = datetime.now()
-            state_manager.conversations[phone_number] = state
+            # state_manager.conversations[phone_number] = state
 
             return response
 
@@ -64,6 +64,9 @@ class ConversationManager:
             if state.current_intent == Intent.EDIT_APPOINTMENT:
                 return await self._handle_appointment_modification(state, message)
 
+            # if state.current_intent == Intent.GREETING:
+            #     return await self._handle_greeting(state, message)
+
             # Handle other intents... like cancel, status, doctor info, faq...
             return self.dialog_agent.generate_generic_response(message)
 
@@ -81,6 +84,7 @@ class ConversationManager:
                 intent=Intent.CREATE_APPOINTMENT,
                 extracted_data=extracted_data
             )
+
 
         except ValueError as e:
             state.last_error = str(e)
@@ -101,33 +105,37 @@ class ConversationManager:
             state.last_error = str(e)
             return f"There seems to be an issue with modifying the appointment: {str(e)}. Could you please provide valid information?"
 
-    async def _handle_confirmation(self, state: ConversationState, message: str) -> str:
-        confirmation_intent = await self.intent_agent.get_confirmation_intent(message)
-        print(state, '_handle_confirmation state')
+    async def _handle_greeting(self, state: ConversationState, message: str) -> str:
+        try:
+            extracted_data = await self.extraction_agent.process(message, Intent.EDIT_APPOINTMENT)
 
-        if confirmation_intent == Intent.CONFIRM:
+            intent = await self.intent_agent.process(message)
+            state.current_intent = intent
+
+        except ValueError as e:
+            state.last_error = str(e)
+            return f"There seems to be an issue with modifying the appointment: {str(e)}. Could you please provide valid information?"
+
+    async def _handle_confirmation(self, state: ConversationState, message: str) -> str:
+
+        if message == '1': #confirm
             result = await self._process_confirmed_action(state)
             state.confirmation_pending = False
             return result
-        elif confirmation_intent == Intent.DENY:
+        elif message == '2': # deny
             state.confirmation_pending = False
             return "I understand you don't want to proceed. What would you like to change?"
         else:
-            return "I didn't quite catch that. Could you please confirm with 'yes' or 'no'?"
+            return "I didn't quite catch that. Could you please confirm with '1' to confirm or '2' to deny/reject?"
 
     async def _process_confirmed_action(self, state: ConversationState) -> str:
         try:
-            print(state, 'here we dey hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh')
             if state.current_intent == Intent.CREATE_APPOINTMENT:
-                # Validate all required fields are present
-                appointment_data = AppointmentData(**state.collected_data)
+                appointment_data = state.collected_data
                 # assign a doctor...
-                # Save appointment to database
-                res = await database.create_appointment(appointment_data.model_dump())
-                print(res, 'res oooooooooooooo' )
-                print(state.collected_data, 'state.collected_data oooooooooooooo' )
+                await database.create_appointment(appointment_data)
                 # Send confirmation
-                return f"Great! I've scheduled your appointment for {appointment_data.preferred_date} for {appointment_data.procedure_type}. We'll send you a confirmation message shortly."
+                return f"Great! I've scheduled your appointment. We'll send you a confirmation message shortly."
 
             elif state.current_intent == Intent.EDIT_APPOINTMENT:
                 # Process appointment modification

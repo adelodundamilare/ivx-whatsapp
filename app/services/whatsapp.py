@@ -1,5 +1,5 @@
 from app.core.config import settings
-import httpx
+import httpx # type: ignore
 from app.utils.logger import setup_logger
 
 logger = setup_logger("whatsapp_api", "whatsapp.log")

@@ -56,18 +56,11 @@ class ConversationState(BaseModel):
 class AppointmentData(BaseModel):
     patient_name: str
     procedure_type: str
+    phone_number: str
     preferred_date: Optional[datetime]
-    preferred_time: Optional[str]
     symptoms: Optional[str] = None
     insurance_info: Optional[str] = None
     special_requirements: Optional[str] = None
-    phone_number: str
-
-    @field_validator('preferred_date')
-    def validate_date(cls, v):
-        if v and v < datetime.now():
-            raise ValueError("Appointment date cannot be in the past")
-        return v
 
 @dataclass
 class ValidationResult:
