@@ -32,9 +32,7 @@ class DialogAgent(BaseAgent):
         #     # Add more intents and their field types
         # }
 
-    async def process(self, phone_number: str, intent: Intent, extracted_data: Dict) -> str:
-        state = state_manager.conversation_state
-
+    async def process(self, state: ConversationState, intent: Intent, extracted_data: Dict) -> str:
         # Remove any empty or None values from extracted data
         # extracted_data = {
         #     k: v for k, v in extracted_data.items()
@@ -52,8 +50,8 @@ class DialogAgent(BaseAgent):
         }
 
         # validate date parse_relative_date
-        if extracted_data and extracted_data['preferred_date']:
-            print(extracted_data, 'extracted_data >>>>>>>>>>>>>')
+        if extracted_data and extracted_data.get('preferred_date'):
+            print(f"Extracted Data: {extracted_data} >>>>>>>>>>>>>")
             extracted_data['preferred_date'] = helpers.parse_relative_date(extracted_data['preferred_date'])
 
         # Update state with new data
@@ -139,32 +137,3 @@ Reply with:
         )
 
         return response.choices[0].message.content
-
-
-    # def _validate_data(self, intent: Intent, data: Dict) -> ValidationResult:
-    #     errors = {}
-    #     field_types = self.field_types.get(intent, {})
-
-    #     for field, value in data.items():
-    #         field_type = field_types.get(field)
-    #         if field_type and field_type in self.validation_rules:
-    #             validator = self.validation_rules[field_type]
-    #             if not validator(value):
-    #                 errors[field] = f"Invalid {field_type} format for {field}"
-
-    #     return ValidationResult(
-    #         is_valid=len(errors) == 0,
-    #         errors=errors
-    #     )
-
-
-    # async def _generate_validation_error_message(self, state: ConversationState) -> str:
-    #     error_messages = []
-    #     for field, error in state.validation_errors.items():
-    #         error_messages.append(f"- {error}")
-
-    #     return (
-    #         "I noticed some issues with the information provided:\n" +
-    #         "\n".join(error_messages) +
-    #         "\nPlease provide the correct information."
-    #     )

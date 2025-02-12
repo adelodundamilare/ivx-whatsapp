@@ -1,6 +1,6 @@
 import traceback
 from typing import Dict
-from app.models.models import AppointmentData, ConversationState, Intent
+from app.models.models import ConversationState, Intent
 from datetime import datetime
 from app.agents.base import VoiceAgent
 from app.agents.intent import IntentAgent
@@ -22,12 +22,18 @@ class ConversationManager:
 
     async def handle_conversation(self, phone_number: str, message: str) -> str:
         try:
-            state = state_manager.conversation_state
+            state = state_manager.conversation_state.get(phone_number, ConversationState(
+                phone_number=phone_number,
+                collected_data={}
+            ))
+            print(state_manager.conversation_state, 'wwwwwwwwwwwwwwwwwwww')
+            print(state, 'iiiiiiiiiiiiiiiiiiii')
             state.interaction_count += 1
 
             intent = await self.intent_agent.process(message)
             state.current_intent = intent
             state.phone_number = phone_number
+
 
             if state.confirmation_pending:
                 state.current_intent = Intent.CREATE_APPOINTMENT
@@ -35,10 +41,10 @@ class ConversationManager:
             if state.modification_pending:
                 state.current_intent = Intent.EDIT_APPOINTMENT
 
-            response = await self._handle_state_based_response(message)
+            response = await self._handle_state_based_response(state, message)
 
             state.last_interaction = datetime.now()
-            # state_manager.conversations[phone_number] = state
+            state_manager.conversation_state[phone_number]=state
 
             return response
 
@@ -47,10 +53,9 @@ class ConversationManager:
             logger.error(f"Error in conversation handling: {str(e)}")
             return "I apologize, but I'm having trouble processing your request. Please try again or contact our support team."
 
-    async def _handle_state_based_response(self, message: str) -> str:
+    async def _handle_state_based_response(self, state: ConversationState, message: str) -> str:
 
         try:
-            state = state_manager.conversation_state
 
             if state.confirmation_pending:
                 return await self._handle_confirmation(state, message)
@@ -79,11 +84,15 @@ class ConversationManager:
         try:
             extracted_data = await self.extraction_agent.process(message, Intent.CREATE_APPOINTMENT)
 
-            return await self.dialog_agent.process(
-                phone_number=state.phone_number,
+            res = await self.dialog_agent.process(
+                state=state,
                 intent=Intent.CREATE_APPOINTMENT,
                 extracted_data=extracted_data
             )
+
+            print(state, 'kkkkkkkkkkkkkkkkkkk')
+
+            return res
 
 
         except ValueError as e:
@@ -117,6 +126,8 @@ class ConversationManager:
             return f"There seems to be an issue with modifying the appointment: {str(e)}. Could you please provide valid information?"
 
     async def _handle_confirmation(self, state: ConversationState, message: str) -> str:
+
+        print(state, 'jjjjjjjjjjjjjjjjjjjjjjjjjjj')
 
         if message == '1': #confirm
             result = await self._process_confirmed_action(state)

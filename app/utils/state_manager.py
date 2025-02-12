@@ -4,7 +4,8 @@ from app.models.models import ConversationState, Intent
 
 class StateManager:
     def __init__(self):
-        self.conversation_state = ConversationState()
+        # self.conversation_state = ConversationState()
+        self.conversation_state: Dict[str, ConversationState] = {}
         self.conversations: Dict[str, ConversationState] = {
             'phone_number': '',
             'current_intent': Intent.UNKNOWN,
