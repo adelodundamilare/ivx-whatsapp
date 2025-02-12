@@ -1,15 +1,10 @@
-
-from typing import Dict
-
-from fastapi import HTTPException
-from app.models import whatsapp as whatsapp_model
 from app.core.config import settings
-from app.models.appointment import AppointmentCreate
 import httpx
+from app.utils.logger import setup_logger
 
+logger = setup_logger("whatsapp_api", "whatsapp.log")
 
-async def send_message(business_phone_number_id: str, from_number: str, messages: str) -> bool:
-    message_text = messages.get("text", {}).get("body")
+async def send_message(business_phone_number_id: str, from_number: str, message_text: str, message_id: str) -> bool:
 
     async with httpx.AsyncClient() as client:
         reply_response = await client.post(
@@ -18,8 +13,8 @@ async def send_message(business_phone_number_id: str, from_number: str, messages
             json={
                 "messaging_product": "whatsapp",
                 "to": from_number,
-                "text": {"body": f"Echo: {message_text}"},
-                # "context": {"message_id": messages.get("id")},  # Reply to the original message
+                "text": {"body": message_text},
+                # "context": {"message_id": message_id},  # Reply to the original message
             },
         )
         if reply_response.status_code != 200:
@@ -31,7 +26,7 @@ async def send_message(business_phone_number_id: str, from_number: str, messages
             json={
                 "messaging_product": "whatsapp",
                 "status": "read",
-                "message_id": messages.get("id"),
+                "message_id": message_id,
             },
         )
         if mark_read_response.status_code != 200:

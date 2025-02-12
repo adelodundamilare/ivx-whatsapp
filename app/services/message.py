@@ -3,7 +3,7 @@ from typing import Dict
 
 from pydantic import ValidationError
 from app.models.whatsapp import ConversationState
-from app.models.appointment import AppointmentCreate
+from app.models.appointment import Appointment
 from app.repository.whatsapp import WhatsAppRepository
 from app.utils.validator import DataValidator
 
@@ -14,7 +14,6 @@ async def process_message(
     current_state: ConversationState,
     repository: WhatsAppRepository
 ) -> str:
-    """Process incoming message based on conversation state"""
     if current_state == ConversationState.WELCOME:
         repository.user_states[user_id] = ConversationState.SERVICE_MENU
         return """Welcome to IVX Anesthesia Services! 👋
@@ -38,7 +37,6 @@ async def handle_menu_selection(
     message: str,
     repository: WhatsAppRepository
 ) -> str:
-    """Handle main menu selection"""
     if message == "1":
         repository.user_states[user_id] = ConversationState.BOOK_APPOINTMENT
         return "Please enter your clinic name to begin booking:"
@@ -64,7 +62,7 @@ async def handle_booking_flow(
 
     if not current_appointment:
         # Start new appointment
-        repository.appointments[user_id] = AppointmentCreate(
+        repository.appointments[user_id] = Appointment(
             clinic_name=message,
             clinic_address="",
             appointment_date=datetime.now(),
@@ -164,7 +162,7 @@ Reply with:
             if message == "1":
                 try:
                     appointment = await self.appointment_manager.create_appointment(
-                        AppointmentCreate(
+                        Appointment(
                             clinic_name=state['clinic_name'],
                             procedure_type=state['procedure_type'],
                             preferred_date=state['preferred_date'],
@@ -401,7 +399,7 @@ class WhatsAppHandler:
         state: ConversationState
     ) -> str:
         """Handle clinic name collection"""
-        if not DataValidator.validate_clinic_name(message):
+        if not DataValidator.validate_name(message):
             raise ValidationError("Please provide a valid clinic name")
 
         state.data['clinic_name'] = message

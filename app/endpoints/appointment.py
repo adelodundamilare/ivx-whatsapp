@@ -2,13 +2,11 @@
 from typing import Dict
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from app.models.whatsapp import  CancellationRequest, MessageRequest, MessageResponse, ProcedureRequest, WhatsAppMessage
-from app.models.appointment import  AppointmentCreate, AppointmentEdit
+from app.models.appointment import  Appointment, AppointmentEdit
 from app.services.ai_assistant import AIAssistant
-from app.services.appointment import AppointmentService
+from app.services.database import DatabaseService
 from app.utils.logger import setup_logger
-import httpx
 from app.core.config import settings
-from app.services import whatsapp as whatsapp_service
 import json
 
 logger = setup_logger("appointment_api", "appointment.log")
@@ -17,7 +15,7 @@ router = APIRouter()
 user_contexts: Dict[str, Dict] = {}
 
 ai_assistant = AIAssistant(openai_key=settings.OPENAI_API_KEY, bubble_api_key=settings.BUBBLE_API_KEY)
-appointment_manager = AppointmentService(bubble_api_key=settings.BUBBLE_API_KEY)
+appointment_manager = DatabaseService(bubble_api_key=settings.BUBBLE_API_KEY)
 
 @router.post("/process-message", response_model=MessageResponse)
 async def process_message(request: MessageRequest):
@@ -127,7 +125,7 @@ async def process_doctor_response(
 
 @router.post("/appointments/create")
 async def create_appointment(
-    appointment: AppointmentCreate,
+    appointment: Appointment,
     background_tasks: BackgroundTasks
 ):
     try:

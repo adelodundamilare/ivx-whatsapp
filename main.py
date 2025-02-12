@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.endpoints import auth, account, utility, whatsapp
+from app.endpoints import whatsapp
 from fastapi.exceptions import RequestValidationError
 from app.middleware.exceptions import global_exception_handler
 

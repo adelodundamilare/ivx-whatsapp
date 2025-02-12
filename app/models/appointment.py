@@ -11,20 +11,12 @@ class AppointmentStatus(str, Enum):
     RESCHEDULED = "rescheduled"
     DOCTOR_ASSIGNED = "doctor_assigned"
 
-class AppointmentPriority(str, Enum):
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-
-class AppointmentCreate(BaseModel):
-    clinic_name: str
-    clinic_address: str
-    procedure_type: str
-    preferred_date: datetime
-    patient_name: str
-    patient_phone: str
+class Appointment(BaseModel):
+    procedure_type: Optional[str] = None
+    preferred_date: Optional[datetime] = None
+    patient_name: Optional[str] = None
+    patient_phone: Optional[str] = None
     medical_notes: Optional[str] = None
-    priority: AppointmentPriority = AppointmentPriority.MEDIUM
     insurance_info: Optional[str] = None
     special_requirements: Optional[str] = None
 
@@ -64,3 +56,4 @@ class AppointmentResponse(BaseModel):
     status: str
     doctor_id: Optional[str] = None
     bubble_id: Optional[str] = None
+

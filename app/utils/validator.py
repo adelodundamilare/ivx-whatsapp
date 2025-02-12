@@ -1,8 +1,6 @@
-from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Any
+from datetime import datetime
+from typing import Optional
 import re
-
-from app.models.whatsapp import BusinessHours
 
 
 class ValidationError(Exception):
@@ -24,27 +22,28 @@ class DataValidator:
         return bool(re.match(pattern, phone))
 
     @staticmethod
-    def validate_date(date: datetime) -> bool:
+    def validate_date(date_str: str) -> bool:
         """Validate if date is within acceptable range and business hours"""
-        if date < datetime.now():
-            return False
+        try:
+            date = datetime.strptime(date_str, "%Y-%m-%d")
+            if date < datetime.now():
+                return False
 
-        if date.weekday() in BusinessHours.WEEKEND_DAYS:
-            return False
+            # if date.weekday() in BusinessHours.WEEKEND_DAYS:
+            #     return False
 
-        if date.hour < BusinessHours.START_HOUR or date.hour >= BusinessHours.END_HOUR:
-            return False
+            # if date.hour < BusinessHours.START_HOUR or date.hour >= BusinessHours.END_HOUR:
+            #     return False
 
-        return True
+            return True
+        except:
+            return False
 
     @staticmethod
-    def validate_clinic_name(name: str) -> bool:
-        """Validate clinic name"""
+    def validate_name(name: str) -> bool:
         return bool(name and len(name.strip()) >= 3)
 
     @staticmethod
     def sanitize_input(text: str) -> str:
-        """Sanitize input text"""
-        # Remove any potential harmful characters
         sanitized = re.sub(r'[<>{}\\]', '', text)
         return sanitized.strip()

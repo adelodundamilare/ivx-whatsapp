@@ -1,18 +1,16 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
-
-class ConversationState(BaseModel):
-    step: str
-    data: Dict[str, Any] = {}
-    last_update: datetime = Field(default_factory=datetime.now)
-    attempt_count: int = 0
 
 class ConversationState(str, Enum):
     WELCOME = "welcome"
     SERVICE_MENU = "service_menu"
     BOOK_APPOINTMENT = "book_appointment"
+    APPOINTMENT_PROCEDURE_TYPE="set_procedure_type"
+    APPOINTMENT_DATE="appointment_data"
+
+
     COLLECT_CLINIC_INFO = "collect_clinic_info"
     COLLECT_DATETIME = "collect_datetime"
     COLLECT_PROCEDURE = "collect_procedure"
@@ -28,22 +26,23 @@ class WhatsAppMessage(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now)
 
 
-# class AppointmentCreate(BaseModel):
-#     clinic_name: str
-#     clinic_address: str
-#     procedure_type: str
-#     preferred_date: datetime
-#     patient_name: str
-#     patient_phone: str
-#     medical_notes: Optional[str] = None
-
-
 class ProcedureType(str, Enum):
     WISDOM_TEETH = "wisdom_teeth"
     DENTAL_IMPLANTS = "dental_implants"
     ROOT_CANAL = "root_canal"
     MULTIPLE_EXTRACTIONS = "multiple_extractions"
     PEDIATRIC_DENTAL = "pediatric_dental"
+
+    @classmethod
+    def from_input(cls, input_value: str) -> Optional['ProcedureType']:
+        input_map = {
+            "1": cls.WISDOM_TEETH,
+            "2": cls.DENTAL_IMPLANTS,
+            "3": cls.ROOT_CANAL,
+            "4": cls.MULTIPLE_EXTRACTIONS,
+            "5": cls.PEDIATRIC_DENTAL
+        }
+        return input_map.get(input_value)
 
 class Specialty(str, Enum):
     GENERAL = "general"
