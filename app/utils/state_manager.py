@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Dict
+from typing import Dict, Optional
 from app.models.models import ConversationState, Intent
 
 class StateManager:
     def __init__(self):
-        # self.conversation_state = ConversationState()
         self.conversation_state: Dict[str, ConversationState] = {}
+        self.business_phone_number: Optional[str] = None
         self.conversations: Dict[str, ConversationState] = {
             'phone_number': '',
             'current_intent': Intent.UNKNOWN,
@@ -29,6 +29,20 @@ class StateManager:
     # def get_conversation_state(self):
     #     return self.conversation_state
 
+    def get_state(self, phone_number: str) -> bool:
+        if phone_number in self.conversation_state:
+            return self.conversation_state[phone_number]
+        return False
+
+    def get_is_processing(self, phone_number: str) -> bool:
+        if phone_number in self.conversation_state:
+            return self.conversation_state[phone_number].is_processing
+        return False
+
+    def set_is_processing(self, phone_number: str, value: bool):
+        if phone_number in self.conversation_state:
+            self.conversation_state[phone_number].is_processing = value
+
     def set_user_phone_number(self, phone_number: str):
         self.user_phone_number = phone_number
 
@@ -37,7 +51,6 @@ class StateManager:
 
 # Create a single instance
 state_manager = StateManager()
-
 # def get_state_manager():
 #     return state_manager
 

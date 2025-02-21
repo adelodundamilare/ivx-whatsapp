@@ -1,26 +1,21 @@
 
+from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
+from app.models.models import Message, MessageType
+from app.utils.state_manager import state_manager
+from app.engine import AppointmentOrchestrator
+from app.core.config import settings
 from datetime import datetime
 import traceback
-from typing import Dict
-from fastapi import APIRouter,  HTTPException, Request
-from app.engine import AppointmentOrchestrator
-from app.models.models import Message, MessageType
-from app.services import ai_assistant
 from app.utils.logger import setup_logger
-from app.core.config import settings
-from app.services import whatsapp as whatsapp_service
-from app.utils.state_manager import state_manager
 
 logger = setup_logger("whatsapp_api", "whatsapp.log")
-
 router = APIRouter()
-user_contexts: Dict[str, Dict] = {}
+
 orchestrator = AppointmentOrchestrator()
 
 @router.post("/webhook")
-async def handle_webhook(request: Request):
+async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
     body = await request.json()
-    # logger.info(f"Incoming webhook message: {json.dumps(body, indent=2)}")
 
     try:
         entry = body.get("entry", [{}])[0]
@@ -30,12 +25,18 @@ async def handle_webhook(request: Request):
         message_text = messages.get("text", {}).get("body")
         message_id = messages.get("id")
 
+        #todo: handle voice messages
+
         if messages.get("type") == "text":
             business_phone_number_id = value.get("metadata", {}).get("phone_number_id")
-
             from_number = messages.get("from")
             message_text = messages.get("text", {}).get("body")
             state_manager.set_user_phone_number(from_number)
+
+            print(state_manager.get_state(from_number), 'start wwwwwwwwwwwwwwwwww')
+
+            if state_manager.get_is_processing(from_number) == True:
+                return {"status": "ok"}
 
             message = Message(
                 message_id=message_id,
@@ -46,17 +47,10 @@ async def handle_webhook(request: Request):
                 business_phone_number_id=business_phone_number_id
             )
 
-            # Process the message here
-            await orchestrator.process_message(message)
-            # message_text = await ai_assistant.process_message(message_text)
-            # await database.process_message(from_number, message_text, user_contexts)
+            # await orchestrator.process_message(message)
 
-            # await whatsapp_service.send_message(
-            #     business_phone_number_id,
-            #     from_number,
-            #     message_text,
-            #     message_id
-            # )
+            # state_manager.set_is_processing(from_number, False)
+            background_tasks.add_task(_process_message_task, message)
 
         return {"status": "ok"}
     except Exception as e:
@@ -79,3 +73,10 @@ async def verify_webhook(request: Request):
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+async def _process_message_task(message):
+    try:
+        await orchestrator.process_message(message)
+    except Exception as e:
+        logger.error(f"Error in background task processing message {message.message_id}: {e}")
+        traceback.print_exc()

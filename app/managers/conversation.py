@@ -26,14 +26,13 @@ class ConversationManager:
                 phone_number=phone_number,
                 collected_data={}
             ))
-            print(state_manager.conversation_state, 'wwwwwwwwwwwwwwwwwwww')
-            print(state, 'iiiiiiiiiiiiiiiiiiii')
+
             state.interaction_count += 1
+            state.is_processing = True
 
             intent = await self.intent_agent.process(message)
             state.current_intent = intent
             state.phone_number = phone_number
-
 
             if state.confirmation_pending:
                 state.current_intent = Intent.CREATE_APPOINTMENT
@@ -44,6 +43,8 @@ class ConversationManager:
             response = await self._handle_state_based_response(state, message)
 
             state.last_interaction = datetime.now()
+
+            # last state update
             state_manager.conversation_state[phone_number]=state
 
             return response

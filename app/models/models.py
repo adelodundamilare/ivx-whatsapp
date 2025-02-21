@@ -52,6 +52,7 @@ class ConversationState(BaseModel):
     context: Optional[Dict] = {}
     interaction_count: Optional[int] = 0
     last_error: Optional[str] = None
+    is_processing: bool = False
 
 class AppointmentData(BaseModel):
     patient_name: str
