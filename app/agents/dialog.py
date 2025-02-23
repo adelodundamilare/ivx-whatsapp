@@ -5,7 +5,6 @@ import os
 from app.core.config import settings
 from app.models.models import ConversationState, Intent
 from app.utils import helpers
-from app.utils.state_manager import state_manager
 from openai import OpenAI # type: ignore
 
 

@@ -1,5 +1,7 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.core.config import settings
+from app.models.models import Message
+from app.utils.state_manager import StateManager
 import httpx # type: ignore
 from app.utils.logger import setup_logger
 from typing import Dict, List, Optional
@@ -38,11 +40,16 @@ async def send_message(business_phone_number_id: str, from_number: str, message_
 
 
 class WhatsAppBusinessAPI:
-    def __init__(self, business_phone_number_id: str):
-        self.base_url = f"https://graph.facebook.com/v18.0/{business_phone_number_id}"
+    def __init__(self, message: Message):
+        self.message = message
+        self.business_phone_number_id = self.message.business_phone_number_id
+        self.to_number = self.message.phone_number
+        self.state_manager = StateManager()
+        self.base_url = f"https://graph.facebook.com/v18.0/{self.business_phone_number_id}"
         self.headers = {"Authorization": f"Bearer {settings.GRAPH_API_TOKEN}"}
 
-    async def send_text_message(self, to_number: str, message: str, reply_to_message_id: Optional[str] = None) -> Dict:
+    async def send_text_message(self, message: str, to_number: Optional[str] = None,  reply_to_message_id: Optional[str] = None) -> Dict:
+        to_number = to_number or self.to_number
         """Send a simple text message"""
         payload = {
             "messaging_product": "whatsapp",
@@ -50,10 +57,11 @@ class WhatsAppBusinessAPI:
             "text": {"body": message}
         }
 
-        # if reply_to_message_id:
-        #     payload["context"] = {"message_id": reply_to_message_id}
+        if reply_to_message_id:
+            payload["context"] = {"message_id": reply_to_message_id}
 
-        return await self._make_request("/messages", payload)
+        await self._make_request("/messages", payload)
+        self.state_manager.update_state(to_number, is_processing=False)
 
     async def send_template_message(
         self,
@@ -312,116 +320,111 @@ class WhatsAppBusinessAPI:
                 logger.error(f"Request failed: {str(e)}")
                 return {"error": str(e)}
 
-# # Example usage
-# async def main():
-#     api = WhatsAppBusinessAPI(
-#         business_phone_number_id=settings.BUSINESS_PHONE_NUMBER_ID,
-#         api_token=settings.GRAPH_API_TOKEN
-#     )
+# Example usage
+async def main():
+    api = WhatsAppBusinessAPI(business_phone_number_id=settings.BUSINESS_PHONE_NUMBER_ID)
 
-#     # Example: Send template message
-#     template_components = [
-#         {
-#             "type": "body",
-#             "parameters": [
-#                 {
-#                     "type": "text",
-#                     "text": "John Doe"
-#                 }
-#             ]
-#         }
-#     ]
+    # Example: Send template message
+    template_components = [
+        {
+            "type": "body",
+            "parameters": [
+                {
+                    "type": "text",
+                    "text": "John Doe"
+                }
+            ]
+        }
+    ]
 
-#     await api.send_template_message(
-#         to_number="RECIPIENT_NUMBER",
-#         template_name="hello_world",
-#         language_code="en",
-#         components=template_components
-#     )
+    await api.send_template_message(
+        to_number="RECIPIENT_NUMBER",
+        template_name="hello_world",
+        language_code="en",
+        components=template_components
+    )
 
-#     # Example: Send interactive list
-#     sections = [
-#         {
-#             "title": "Products",
-#             "rows": [
-#                 {
-#                     "id": "PRODUCT_1",
-#                     "title": "Product 1",
-#                     "description": "Description 1"
-#                 },
-#                 {
-#                     "id": "PRODUCT_2",
-#                     "title": "Product 2",
-#                     "description": "Description 2"
-#                 }
-#             ]
-#         }
-#     ]
+    # Example: Send interactive list
+    sections = [
+        {
+            "title": "Products",
+            "rows": [
+                {
+                    "id": "PRODUCT_1",
+                    "title": "Product 1",
+                    "description": "Description 1"
+                },
+                {
+                    "id": "PRODUCT_2",
+                    "title": "Product 2",
+                    "description": "Description 2"
+                }
+            ]
+        }
+    ]
 
-#     await api.send_interactive_list(
-#         to_number="RECIPIENT_NUMBER",
-#         header_text="Our Products",
-#         body_text="Please select a product",
-#         footer_text="Thank you for shopping with us",
-#         button_text="View Products",
-#         sections=sections
-#     )
+    await api.send_interactive_list(
+        to_number="RECIPIENT_NUMBER",
+        header_text="Our Products",
+        body_text="Please select a product",
+        footer_text="Thank you for shopping with us",
+        button_text="View Products",
+        sections=sections
+    )
 
-#     # Example: Send buttons
-#     buttons = [
-#         {
-#             "type": "reply",
-#             "reply": {
-#                 "id": "BUTTON_1",
-#                 "title": "Yes"
-#             }
-#         },
-#         {
-#             "type": "reply",
-#             "reply": {
-#                 "id": "BUTTON_2",
-#                 "title": "No"
-#             }
-#         }
-#     ]
+    # Example: Send buttons
+    buttons = [
+        {
+            "type": "reply",
+            "reply": {
+                "id": "BUTTON_1",
+                "title": "Yes"
+            }
+        },
+        {
+            "type": "reply",
+            "reply": {
+                "id": "BUTTON_2",
+                "title": "No"
+            }
+        }
+    ]
 
-#     await api.send_buttons(
-#         to_number="RECIPIENT_NUMBER",
-#         header_text="Confirmation",
-#         body_text="Would you like to proceed?",
-#         footer_text="Choose an option",
-#         buttons=buttons
-#     )
+    await api.send_buttons(
+        to_number="RECIPIENT_NUMBER",
+        header_text="Confirmation",
+        body_text="Would you like to proceed?",
+        footer_text="Choose an option",
+        buttons=buttons
+    )
 
 
-# # Example usage
-# async def handle_appointment_booking():
-#     api = WhatsAppBusinessAPI(
-#         business_phone_number_id=settings.BUSINESS_PHONE_NUMBER_ID,
-#         api_token=settings.GRAPH_API_TOKEN
-#     )
+# Example usage
+async def handle_appointment_booking():
+    api = WhatsAppBusinessAPI(business_phone_number_id=settings.BUSINESS_PHONE_NUMBER_ID)
 
-#     # Generate available dates (next 14 days)
-#     today = datetime.now()
-#     available_dates = [
-#         today + timedelta(days=x)
-#         for x in range(14)
-#         if (today + timedelta(days=x)).weekday() < 5  # Exclude weekends
-#     ]
+    # Generate available dates (next 14 days)
+    today = datetime.now()
+    available_dates = [
+        today + timedelta(days=x)
+        for x in range(14)
+        if (today + timedelta(days=x)).weekday() < 5  # Exclude weekends
+    ]
 
-#     # Send calendar selection
-#     await api.send_calendar_selection(
-#         to_number="RECIPIENT_NUMBER",
-#         start_date=today,
-#         available_dates=available_dates,
-#         header_text="Book Appointment",
-#         body_text="Please select your preferred date:"
-#     )
+    # Send calendar selection
+    await api.send_calendar_selection(
+        to_number="RECIPIENT_NUMBER",
+        start_date=today,
+        available_dates=available_dates,
+        header_text="Book Appointment",
+        body_text="Please select your preferred date:"
+    )
 
-#     # Example time slots (would be sent after date selection)
-#     time_slots = ["09:00", "10:00", "11:00"]
-#     await api.send_time_slots(
-#         to_number="RECIPIENT_NUMBER",
-#         selected_date=available_dates[0],
-#         available_slots=time_slots
-#     )
+    # Example time slots (would be sent after date selection)
+    time_slots = ["09:00", "10:00", "11:00"]
+    await api.send_time_slots(
+        to_number="RECIPIENT_NUMBER",
+        selected_date=available_dates[0],
+        available_slots=time_slots
+    )
+

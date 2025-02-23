@@ -24,6 +24,7 @@ class Intent(str, Enum):
     THANK = "thank"
     HELP = "help"
     UNKNOWN = "unknown"
+    REQUEST_CLINIC_DATA = "request_clinic_data"
 
     @classmethod
     def from_string(cls, value: str) -> Optional["Intent"]:
@@ -41,9 +42,14 @@ class Message(BaseModel):
     timestamp: datetime
     business_phone_number_id: str
 
+class ClinicData(BaseModel):
+    clinic_name: str
+    full_name: str
+
 class ConversationState(BaseModel):
     phone_number: Optional[str]=None
     current_intent: Optional[Intent] = None
+    clinic_data: Optional[ClinicData] = None
     collected_data: Dict = {}
     missing_fields: List[str] = []
     last_interaction: Optional[datetime]=datetime.now()

@@ -1,67 +1,129 @@
 
 import asyncio
+from app.flow.onboarding import OnboardingFlow
 from app.managers.conversation import ConversationManager
-from app.models.models import Message
+from app.models.models import Intent, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.logger import setup_logger
-from app.utils.state_manager import state_manager
+from app.utils.state_manager import StateManager
 
 logger = setup_logger("engine", "engine.log")
-processing_message = False
 
 class AppointmentOrchestrator:
-    def __init__(self):
+    def __init__(self, message: Message):
+        self.message = message
         self.conversation_manager = ConversationManager()
+        self.state_manager = StateManager()
+        self.state = StateManager().get_state(self.message.phone_number)
+
+    async def process_message(self):
+        current_intent = self.state_manager.get_current_intent(self.message.phone_number)
+        print(current_intent,  'current_intent')
+
+        if current_intent == Intent.REQUEST_CLINIC_DATA:
+            print('yooooooooooooooooooooooooo')
+            return
+
+        await OnboardingFlow(self.message).process()
 
 
-    async def process_message(self, message: Message):
-        try:
-            response = await self.conversation_manager.handle_conversation(
-                message.phone_number,
-                message.content
-            )
+    # async def process_message(self, message: Message):
+    #     try:
+    #         response = await self.conversation_manager.handle_conversation(
+    #             message.phone_number,
+    #             message.content
+    #         )
 
-            await self.send_response(message, response)
+    #         await self.send_response(message, response)
 
-            state_manager.set_is_processing(message.phone_number, False)
+    #         state_manager.set_is_processing(message.phone_number, False)
 
-        except Exception as e:
-            logger.error(f"Error in message processing: {str(e)}")
-            await self.send_response(
-                message.phone_number,
-                "I apologize, but I'm having trouble processing your request. Please try again in a moment."
-            )
+    #     except Exception as e:
+    #         logger.error(f"Error in message processing: {str(e)}")
+    #         await self.send_response(
+    #             message.phone_number,
+    #             "I apologize, but I'm having trouble processing your request. Please try again in a moment."
+    #         )
 
-    async def send_response(self, message: Message, response: str):
-        try:
-            whatsapp_service = WhatsAppBusinessAPI(message.business_phone_number_id)
-            await whatsapp_service.send_text_message(
-                to_number=message.phone_number,
-                message=response
-            )
-        except Exception as e:
-            logger.error(f"Error sending message: {str(e)}")
+    # async def send_response(self, message: Message, response: str):
+    #     try:
+    #         whatsapp_service = WhatsAppBusinessAPI(message)
+    #         await whatsapp_service.send_text_message(
+    #             message=response
+    #         )
+
+    #         # buttons = [
+    #         #     {
+    #         #         "type": "reply",
+    #         #         "reply": {
+    #         #             "id": "BUTTON_1",
+    #         #             "title": "Yes"
+    #         #         }
+    #         #     },
+    #         #     {
+    #         #         "type": "reply",
+    #         #         "reply": {
+    #         #             "id": "BUTTON_2",
+    #         #             "title": "No"
+    #         #         }
+    #         #     }
+    #         # ]
+    #         # await whatsapp_service.send_buttons(
+    #         #     to_number=message.phone_number,
+    #         #     body_text="Body text here",
+    #         #     header_text="Header Text",
+    #         #     footer_text="Choose an option",
+    #         #     buttons=buttons
+    #         # )
+
+    #         # sections = [
+    #         #     {
+    #         #         "title": "Products",
+    #         #         "rows": [
+    #         #             {
+    #         #                 "id": "PRODUCT_1",
+    #         #                 "title": "Product 1",
+    #         #                 "description": "Description 1"
+    #         #             },
+    #         #             {
+    #         #                 "id": "PRODUCT_2",
+    #         #                 "title": "Product 2",
+    #         #                 "description": "Description 2"
+    #         #             }
+    #         #         ]
+    #         #     }
+    #         # ]
+    #         # await whatsapp_service.send_interactive_list(
+    #         #     to_number=message.phone_number,
+    #         #     header_text="Our Products",
+    #         #     body_text="Please select a product",
+    #         #     footer_text="Thank you for shopping with us",
+    #         #     button_text="View Products",
+    #         #     sections=sections
+    #         # )
+    #     except Exception as e:
+    #         logger.error(f"Error sending message: {str(e)}")
 
 
-    async def send_response(self, message: Message, response: str) -> bool:
-        try:
-            whatsapp_service = WhatsAppBusinessAPI(message.business_phone_number_id)
+    # async def send_response(self, message: Message, response: str) -> bool:
+    #     try:
+    #         whatsapp_service = WhatsAppBusinessAPI(message.business_phone_number_id)
 
-            async with asyncio.timeout(30.0):
-                await whatsapp_service.send_text_message(
-                    to_number=message.phone_number,
-                    message=response
-                )
+    #         async with asyncio.timeout(30.0):
+    #             await whatsapp_service.send_text_message(
+    #                 to_number=message.phone_number,
+    #                 message=response
+    #             )
 
-                try:
-                    await whatsapp_service.mark_message_as_read(
-                        message_id=message.message_id
-                    )
-                except Exception as e:
-                    logger.warning(f"Failed to mark as read: {str(e)}")
+    #             try:
+    #                 await whatsapp_service.mark_message_as_read(
+    #                     message_id=message.message_id
+    #                 )
+    #             except Exception as e:
+    #                 logger.warning(f"Failed to mark as read: {str(e)}")
 
-            return True
+    #         return True
 
-        except Exception as e:
-            logger.error(f"Failed to send message: {str(e)}")
-            return False
+    #     except Exception as e:
+    #         logger.error(f"Failed to send message: {str(e)}")
+    #         return False

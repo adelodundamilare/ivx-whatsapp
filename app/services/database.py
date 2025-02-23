@@ -46,6 +46,39 @@ async def create_appointment(data: Dict):
         logger.error(f"Error: {str(e)}")
         raise
 
+async def find_clinic_by_phone(phone_number: str):
+    try:
+        constraints = [{
+            'key': 'phone_number',
+            'constraint_type': 'equals',
+            'value': phone_number
+        }]
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{bubble_url}/clinic",
+                params={'constraints': json.dumps(constraints)},
+                headers={"Authorization": f"Bearer {bubble_api_key}"},
+                timeout=30
+            )
+
+            # response.raise_for_status()
+            if response.status_code == 404:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if response.status_code not in (200, 201):
+                error_message = response.text or "Failed to fetch data"
+                raise HTTPException(error_message)
+
+            data = response.json()
+
+            print(data, 'data')
+            return data
+
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        raise
+
 async def get_available_slots(self, date: datetime) -> List[datetime]:
     try:
         async with httpx.AsyncClient() as client:

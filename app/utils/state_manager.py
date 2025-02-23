@@ -3,63 +3,56 @@ from typing import Dict, Optional
 from app.models.models import ConversationState, Intent
 
 class StateManager:
-    def __init__(self):
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(StateManager, cls).__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
+
+    def _initialize(self):
         self.conversation_state: Dict[str, ConversationState] = {}
         self.business_phone_number: Optional[str] = None
-        self.conversations: Dict[str, ConversationState] = {
-            'phone_number': '',
-            'current_intent': Intent.UNKNOWN,
-            'collected_data': {},
-            'missing_fields': [],
-            'last_interaction': datetime.now(),
-            'confirmation_pending': False,
-            'modification_pending':  False,
-            'context': {},
-            'interaction_count': 0,
-            'last_error': None,
-        }
-        self.appointment_data = {
-            "current_step": ""
-        }
-        self.user_phone_number = ''
+        self.appointment_data = {"current_step": ""}
+        self.user_phone_number: str = ""
 
-    # def set_conversation_state(self, value: ConversationState):
-    #     self.conversation_state = value
+    def get_state(self, phone_number: str) -> ConversationState:
+        if phone_number not in self.conversation_state:
+            self.conversation_state[phone_number] = ConversationState()
+        return self.conversation_state[phone_number]
 
-    # def get_conversation_state(self):
-    #     return self.conversation_state
+    def update_state(self, phone_number: str, **updates):
+        state = self.get_state(phone_number)
+        # print(updates, state, "save state data ............")
+        for key, value in updates.items():
+            if hasattr(state, key):
+                setattr(state, key, value)
+            else:
+                setattr(state, key, value)
+        self.conversation_state[phone_number] = state
+        return state
 
-    def get_state(self, phone_number: str) -> bool:
+    def clear_state(self, phone_number: str):
         if phone_number in self.conversation_state:
-            return self.conversation_state[phone_number]
-        return False
+            del self.conversation_state[phone_number]
 
-    def get_is_processing(self, phone_number: str) -> bool:
-        if phone_number in self.conversation_state:
-            return self.conversation_state[phone_number].is_processing
-        return False
+    def get_current_intent(self, phone_number: str) -> Intent:
+        state = self.get_state(phone_number)
+        return state.current_intent
 
-    def set_is_processing(self, phone_number: str, value: bool):
-        if phone_number in self.conversation_state:
-            self.conversation_state[phone_number].is_processing = value
+    def set_current_intent(self, phone_number: str, intent: Intent):
+        state = self.get_state(phone_number)
+        state.current_intent = intent
 
     def set_user_phone_number(self, phone_number: str):
         self.user_phone_number = phone_number
 
-    def get_user_phone_number(self) -> str:
-        return self.user_phone_number
+    def get_current_step(self) -> str:
+        return self.appointment_data["current_step"]
 
-# Create a single instance
-state_manager = StateManager()
-# def get_state_manager():
-#     return state_manager
+    def set_current_step(self, val: str):
+        self.appointment_data["current_step"] = val
 
-
-def get_current_step() -> str:
-    return state_manager.appointment_data['current_step']
-
-def set_current_step(val:str) -> str:
-    state_manager.appointment_data['current_step'] = val
-
-def is_current_step(val: str) -> bool:
-    return val == get_current_step()
+    def is_current_step(self, val: str) -> bool:
+        return self.get_current_step() == val

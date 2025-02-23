@@ -1,7 +1,7 @@
 
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 from app.models.models import Message, MessageType
-from app.utils.state_manager import state_manager
+from app.utils.state_manager import StateManager
 from app.engine import AppointmentOrchestrator
 from app.core.config import settings
 from datetime import datetime
@@ -11,7 +11,6 @@ from app.utils.logger import setup_logger
 logger = setup_logger("whatsapp_api", "whatsapp.log")
 router = APIRouter()
 
-orchestrator = AppointmentOrchestrator()
 
 @router.post("/webhook")
 async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
@@ -31,11 +30,9 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
             business_phone_number_id = value.get("metadata", {}).get("phone_number_id")
             from_number = messages.get("from")
             message_text = messages.get("text", {}).get("body")
-            state_manager.set_user_phone_number(from_number)
+            state = StateManager().get_state(from_number)
 
-            print(state_manager.get_state(from_number), 'start wwwwwwwwwwwwwwwwww')
-
-            if state_manager.get_is_processing(from_number) == True:
+            if state.is_processing == True:
                 return {"status": "ok"}
 
             message = Message(
@@ -76,7 +73,7 @@ async def verify_webhook(request: Request):
 
 async def _process_message_task(message):
     try:
-        await orchestrator.process_message(message)
+        await AppointmentOrchestrator(message).process_message()
     except Exception as e:
         logger.error(f"Error in background task processing message {message.message_id}: {e}")
         traceback.print_exc()
