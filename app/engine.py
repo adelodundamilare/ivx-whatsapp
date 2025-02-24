@@ -1,8 +1,10 @@
 
 import asyncio
+import traceback
+from app.managers.data_dialog import DataDialogManager, DataType
 from app.flow.onboarding import OnboardingFlow
 from app.managers.conversation import ConversationManager
-from app.models.models import Intent, Message
+from app.models.models import ConfirmIntent, Intent, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.logger import setup_logger
 from app.utils.state_manager import StateManager
@@ -13,18 +15,31 @@ class AppointmentOrchestrator:
     def __init__(self, message: Message):
         self.message = message
         self.conversation_manager = ConversationManager()
+        self.whatsapp_service = WhatsAppBusinessAPI(message)
         self.state_manager = StateManager()
         self.state = StateManager().get_state(self.message.phone_number)
 
     async def process_message(self):
-        current_intent = self.state_manager.get_current_intent(self.message.phone_number)
-        print(current_intent,  'current_intent')
+        try:
+            current_intent = self.state_manager.get_current_intent(self.message.phone_number)
+            print(current_intent,  'current_intent')
 
-        if current_intent == Intent.REQUEST_CLINIC_DATA:
-            print('yooooooooooooooooooooooooo')
-            return
+            if self.state.confirm_intent == ConfirmIntent.REQUEST_CLINIC_DATA:
+                await DataDialogManager(self.message, DataType.CLINIC).handle_confirm_response()
+                return
 
-        await OnboardingFlow(self.message).process()
+            if current_intent == Intent.REQUEST_CLINIC_DATA:
+                await DataDialogManager(self.message, DataType.CLINIC).collect_data()
+                return
+
+            await OnboardingFlow(self.message).start()
+        except Exception as e:
+            logger.error(f"Error in message processing: {str(e)}")
+            traceback.print_exc()
+
+            await self.whatsapp_service.send_text_message("I apologize, but I'm having trouble processing your request. Please try again in a moment.")
+        finally:
+            self.state_manager.update_state(self.message.phone_number, is_processing=False)
 
 
     # async def process_message(self, message: Message):

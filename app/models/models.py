@@ -3,13 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Union
-from pydantic import BaseModel, field_validator
-
-
-class MessageType(str, Enum):
-    TEXT = "text"
-    VOICE = "voice"
-    IMAGE = "image"
+from pydantic import BaseModel
 
 class Intent(str, Enum):
     CREATE_APPOINTMENT = "create_appointment"
@@ -26,6 +20,9 @@ class Intent(str, Enum):
     UNKNOWN = "unknown"
     REQUEST_CLINIC_DATA = "request_clinic_data"
 
+class ConfirmIntent(str, Enum):
+    REQUEST_CLINIC_DATA = "request_clinic_data"
+
     @classmethod
     def from_string(cls, value: str) -> Optional["Intent"]:
         """Case-insensitive lookup of Intent enum."""
@@ -37,19 +34,14 @@ class Intent(str, Enum):
 class Message(BaseModel):
     message_id: str
     phone_number: str
-    type: MessageType
+    type: str
     content: Union[str, bytes]
     timestamp: datetime
     business_phone_number_id: str
 
-class ClinicData(BaseModel):
-    clinic_name: str
-    full_name: str
-
 class ConversationState(BaseModel):
     phone_number: Optional[str]=None
     current_intent: Optional[Intent] = None
-    clinic_data: Optional[ClinicData] = None
     collected_data: Dict = {}
     missing_fields: List[str] = []
     last_interaction: Optional[datetime]=datetime.now()
@@ -58,6 +50,11 @@ class ConversationState(BaseModel):
     context: Optional[Dict] = {}
     interaction_count: Optional[int] = 0
     last_error: Optional[str] = None
+
+    clinic_data: Dict = {}
+    appointment_data: Dict = {}
+    confirm_intent: Optional[ConfirmIntent] = None #key would be passed in
+    input_request: Optional[str] = None #key would be passed in
     is_processing: bool = False
 
 class AppointmentData(BaseModel):

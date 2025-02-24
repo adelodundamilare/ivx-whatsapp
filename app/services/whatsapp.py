@@ -49,8 +49,8 @@ class WhatsAppBusinessAPI:
         self.headers = {"Authorization": f"Bearer {settings.GRAPH_API_TOKEN}"}
 
     async def send_text_message(self, message: str, to_number: Optional[str] = None,  reply_to_message_id: Optional[str] = None) -> Dict:
-        to_number = to_number or self.to_number
         """Send a simple text message"""
+        to_number = to_number or self.to_number
         payload = {
             "messaging_product": "whatsapp",
             "to": to_number,
@@ -60,8 +60,7 @@ class WhatsAppBusinessAPI:
         if reply_to_message_id:
             payload["context"] = {"message_id": reply_to_message_id}
 
-        await self._make_request("/messages", payload)
-        self.state_manager.update_state(to_number, is_processing=False)
+        return await self._make_request("/messages", payload)
 
     async def send_template_message(
         self,
@@ -180,13 +179,14 @@ class WhatsAppBusinessAPI:
 
     async def send_buttons(
         self,
-        to_number: str,
-        header_text: Optional[str],
+        buttons: List[Dict],
         body_text: str,
-        footer_text: Optional[str],
-        buttons: List[Dict]
+        to_number: Optional[str] = None,
+        header_text: Optional[str] = None,
+        footer_text: Optional[str] = None,
     ) -> Dict:
         """Send a message with buttons"""
+        to_number = to_number or self.to_number
         payload = {
             "messaging_product": "whatsapp",
             "to": to_number,
@@ -301,6 +301,7 @@ class WhatsAppBusinessAPI:
         return await self._make_request("/messages", payload)
 
     async def _make_request(self, endpoint: str, payload: Dict) -> Dict:
+        to_number = payload.get("to")
         """Make HTTP request to WhatsApp API"""
         async with httpx.AsyncClient() as client:
             try:
@@ -319,6 +320,8 @@ class WhatsAppBusinessAPI:
             except Exception as e:
                 logger.error(f"Request failed: {str(e)}")
                 return {"error": str(e)}
+            finally:
+                self.state_manager.update_state(to_number, is_processing=False)
 
 # Example usage
 async def main():

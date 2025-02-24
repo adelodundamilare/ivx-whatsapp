@@ -1,4 +1,4 @@
-from app.models.models import Intent, Message
+from app.models.models import ConfirmIntent, Intent, Message
 from app.services import database
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.state_manager import StateManager
@@ -10,7 +10,7 @@ class OnboardingFlow:
         self.state = StateManager().get_state(self.message.phone_number)
         self.whatsapp_service = WhatsAppBusinessAPI(message)
 
-    async def process(self):
+    async def start(self):
         # fetch if is first time user ==> user's with language not set
         # if first time user, introduce bot
         # present language options and ask user to select
@@ -28,6 +28,9 @@ class OnboardingFlow:
 
     async def fetch_clinic_data(self):
         # first find data in local storage or redis
+        if self.state.confirm_intent == ConfirmIntent.REQUEST_CLINIC_DATA:
+            print(self.state.message, 'confirm response...')
+            return
 
         if self.state.clinic_data:
             return self.state.clinic_data
@@ -50,8 +53,6 @@ class OnboardingFlow:
             current_intent=Intent.REQUEST_CLINIC_DATA
         )
 
-        print(self.state, 'state data >>>>>>>>>>>>')
-
         await self.whatsapp_service.send_text_message(message="""
 Welcome to IVX AIA! 🎉
 
@@ -59,6 +60,9 @@ We're excited to have you on board! IVX AIA is your intelligent AI assistant, de
 
 To get started, please tell us your name and your clinic name; e.g (Name: Franca Gold, Clinic Name: Bob Specialist)
 """)
+
+    async def collect_clinic_data(self):
+        pass
 
     def save_data_to_db(self, clinic):
         pass
