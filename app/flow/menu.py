@@ -1,6 +1,5 @@
 from app.flow.appointment import AppointmentFlow
-from app.managers.appointment_dialog import AppointmentDialog, DataType
-from app.models.models import Intent, Message
+from app.models.models import ConfirmIntent, Intent, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.state_manager import StateManager
 
@@ -33,11 +32,30 @@ class MenuFlow:
         await AppointmentFlow(self.message).start()
 
     async def update_appointment(self):
-        await self.whatsapp_service.send_text_message("Yo! we're updating this appointment")
+        await self.whatsapp_service.send_text_message(
+            "Please provide your appointment ID. 🔍\n\n"
+            "This helps us quickly locate your booking."
+        )
 
     async def cancel_appointment(self):
-        await self.whatsapp_service.send_text_message("Yo! we're cancelling this appointment")
+        await self.whatsapp_service.send_text_message(
+            "Please provide your appointment ID. 🔍\n\n"
+            "This helps us quickly locate your booking."
+        )
 
     async def check_appointment_status(self):
-        await self.whatsapp_service.send_text_message("Yo! we're to check this appointment status")
+        if self.state.confirm_intent == ConfirmIntent.REQUEST_ID:
+            # validate id
+            # show appointment data
+            await self.whatsapp_service.send_text_message("You're appointment with ID {} is still processing".format(self.message.content))
+            return
 
+        self.state_manager.update_state(
+            self.message.phone_number,
+            current_intent=Intent.CHECK_STATUS,
+            confirm_intent=ConfirmIntent.REQUEST_ID
+        )
+        await self.whatsapp_service.send_text_message(
+            "To check your appointment status, please provide your appointment ID. 🔍\n\n"
+            "This helps us quickly locate your booking."
+        )

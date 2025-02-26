@@ -74,7 +74,7 @@ class BubbleApiClient:
         """Create a new appointment"""
         try:
             result = await self._make_request("post", "appointments", data=data)
-            return True
+            return result
         except HTTPException as e:
             raise HTTPException(status_code=500, detail=f"Failed to create appointment: {e.detail}")
         except Exception as e:

@@ -7,11 +7,11 @@ from pydantic import BaseModel
 import os
 from app.agents import agents
 from app.core.config import settings
-from app.models.models import ConfirmIntent, DataType, Message
+from app.models.models import ConfirmIntent, DataType, Intent, Message
 from app.services.bubble_client import bubble_client
 from app.services.whatsapp import WhatsAppBusinessAPI
-from app.utils import helpers
 from app.utils.state_manager import StateManager
+from app.models.models import main_menu_options
 from openai import OpenAI # type: ignore
 
 
@@ -199,12 +199,24 @@ class ClinicDialog:
         data = getattr(self.state, f"{self.data_type.value}_data", {})
         data = { **data, "phone_number": self.message.phone_number }
 
+        self.state_manager.update_state(
+            self.message.phone_number,
+            current_intent=Intent.REQUEST_MENU_OPTIONS,
+            input_request=None,
+        )
+
         await bubble_client.create_clinic(data)
 
         await self.whatsapp_service.send_text_message(
-            "Great! your data has been saved, feel free to send '/help' to change or update your clinic information."
+            "Great! Your information has been successfully saved. ✅"
         )
-        # show menu prompt...
+
+        await self.whatsapp_service.send_interactive_list(
+            header_text="Explore More Options ⚡",
+            body_text="You're all set! 🚀 Now, feel free to explore what our AI assistant can do for you. Select an option from the menu below to proceed.",
+            button_text="View Options",
+            sections=main_menu_options
+        )
 
     async def _handle_field_update(self, field_to_update: str):
         invalid_field = [field_to_update]

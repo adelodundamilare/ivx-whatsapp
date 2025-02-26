@@ -231,10 +231,9 @@ class AppointmentDialog(Generic[T]):
         buttons = self._create_buttons(data)
 
         for i in range(0, len(buttons), 3):
-            print(f"Sending chunk *******************************: {chunk}")
             chunk = buttons[i:i + 3]
             await self.whatsapp_service.send_buttons(
-                body_text="Select to update.",
+                body_text="Select an option.",
                 buttons=chunk
             )
 
@@ -245,23 +244,13 @@ class AppointmentDialog(Generic[T]):
         )
 
     def _create_buttons(self, data: Dict[str, Any]) -> List[Dict]:
-        # update_buttons = [
-        #     {
-        #         "type": "reply",
-        #         "reply": {
-        #             "id": f"UPDATE_{key.upper()}",
-        #             "title": f"Update {key.replace('_', ' ').title()}"
-        #         }
-        #     }
-        #     for key in data.keys()
-        # ]
         update_buttons = []
         for i, key in enumerate(data.keys()):
             update_buttons.append({
                 "type": "reply",
                 "reply": {
                     "id": f"UPDATE_{i}",
-                    "title": f"Update {key.replace('_', ' ').title()}"
+                    "title": f"{key.replace('_', ' ').title()}"
                 }
             })
 
@@ -292,7 +281,7 @@ class AppointmentDialog(Generic[T]):
         if self.config.data_handler:
             success = await self.config.data_handler(data, self.message.phone_number)
         else:
-            success = await bubble_client.create_clinic({**data, "phone_number": self.message.phone_number})
+            print('No data handler')
 
         # Clear confirmation intent after handling data
         self.state_manager.update_state(
@@ -303,7 +292,7 @@ class AppointmentDialog(Generic[T]):
 
         data_type_name = self.data_type.value.replace('_', ' ')
         if success:
-            await self._handle_confirmation_success()
+            await self._handle_confirmation_success(success.get('id', "--"))
         else:
             await self.whatsapp_service.send_text_message(
                 f"Sorry, we encountered an issue saving your {data_type_name} information. Please try again later."
@@ -459,13 +448,16 @@ class AppointmentDialog(Generic[T]):
     async def _send_location_option(self):
         await self.whatsapp_service.request_location_selection()
 
-    async def _handle_confirmation_success(self):
+    async def _handle_confirmation_success(self, appointment_id):
         self.state_manager.update_state(
             self.message.phone_number,
-            current_intent=Intent.REQUEST_MENU_OPTIONS
+            current_intent=Intent.REQUEST_MENU_OPTIONS,
+            input_request=None,
+            appointment_data={}
         )
 
         await self.whatsapp_service.send_text_message("Great! Your appointment has been successfully booked.")
+        await self.whatsapp_service.send_text_message(f"Your appointment ID is **{appointment_id}**. Please keep this ID for easy tracking and future reference.")
         await self.whatsapp_service.send_text_message("We're now reaching out to the best doctors based on your preferences. You'll receive a confirmation soon.")
 
         await self.whatsapp_service.send_interactive_list(

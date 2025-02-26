@@ -30,7 +30,7 @@ class AppointmentOrchestrator:
                 await ClinicDialog(self.message, DataType.CLINIC).collect_data()
                 return
 
-            if self.state.current_intent == Intent.CREATE_APPOINTMENT:
+            if current_intent == Intent.CREATE_APPOINTMENT:
                 await AppointmentFlow(self.message).start()
                 return
 

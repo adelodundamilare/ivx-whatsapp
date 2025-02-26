@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class Intent(str, Enum):
     CREATE_APPOINTMENT = "create_appointment"
+    CHECK_STATUS = "check_status"
     EDIT_APPOINTMENT = "edit_appointment"
     CANCEL_APPOINTMENT = "cancel_appointment"
     CHECK_AVAILABILITY = "check_availability"
@@ -24,6 +25,7 @@ class Intent(str, Enum):
 
 class ConfirmIntent(str, Enum):
     REQUEST_CLINIC_DATA = "request_clinic_data"
+    REQUEST_ID = "request_id"
     CONFIRM_DATA = "confirm_data"
 
     @classmethod

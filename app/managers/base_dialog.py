@@ -273,7 +273,7 @@ class BaseDialog(Generic[T]):
         data_type_name = self.data_type.value.replace('_', ' ')
         if success:
             await self.whatsapp_service.send_text_message(
-                f"Great! Your {data_type_name} information has been saved. Feel free to send '/help' for more options."
+                f"Great! Your {data_type_name} information has been saved."
             )
         else:
             await self.whatsapp_service.send_text_message(
