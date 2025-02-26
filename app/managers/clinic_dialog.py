@@ -7,7 +7,7 @@ from pydantic import BaseModel
 import os
 from app.agents import agents
 from app.core.config import settings
-from app.models.models import ConfirmIntent, Message
+from app.models.models import ConfirmIntent, DataType, Message
 from app.services.bubble_client import bubble_client
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils import helpers
@@ -17,10 +17,6 @@ from openai import OpenAI # type: ignore
 
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-class DataType(Enum):
-    CLINIC = "clinic"
-    APPOINTMENT = "appointment"
 
 class DataValidator(BaseModel):
     required_fields: List[str]
@@ -33,12 +29,6 @@ DATA_CONFIGS = {
             "full_name": lambda x: "doe" not in x.lower()
         }
     ),
-    DataType.APPOINTMENT: DataValidator(
-        required_fields=["date", "time", "service_type", "location"],
-        validation_rules={
-            "date": lambda x: helpers.validate_date(x)
-        }
-    ),
     # Add more configurations as needed
 }
 
@@ -47,7 +37,7 @@ class ValidationResult:
     invalid_fields: List[str]
     valid_fields: Dict[str, any]
 
-class DataDialogManager:
+class ClinicDialog:
     def __init__(self, message: Message, data_type: DataType):
         self.message = message
         self.data_type = data_type

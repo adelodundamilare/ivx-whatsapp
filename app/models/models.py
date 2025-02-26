@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
 
 class Intent(str, Enum):
@@ -69,7 +69,38 @@ class AppointmentData(BaseModel):
     insurance_info: Optional[str] = None
     special_requirements: Optional[str] = None
 
+
+class DataType(Enum):
+    CLINIC = "clinic"
+    APPOINTMENT = "appointment"
+
+
 @dataclass
 class ValidationResult:
-    is_valid: bool
-    errors: Dict[str, str]
+    invalid_fields: List[str]
+    valid_fields: Dict[str, Any]
+
+
+main_menu_options = [
+    {
+        "title": "Menu Options",
+        "rows": [
+            {
+                "id": "CREATE_APPOINTMENT",
+                "title": "Create appointment"
+            },
+            {
+                "id": "CHECK_APPOINTMENT_STATUS",
+                "title": "Check Status"
+            },
+            {
+                "id": "UPDATE_APPOINTMENT",
+                "title": "Update appointment"
+            },
+            {
+                "id": "CANCEL_APPOINTMENT",
+                "title": "Cancel appointment"
+            }
+        ]
+    }
+]

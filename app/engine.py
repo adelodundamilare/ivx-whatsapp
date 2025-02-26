@@ -1,11 +1,12 @@
 
-import asyncio
 import traceback
+from app.flow.appointment import AppointmentFlow
 from app.flow.menu import MenuFlow
-from app.managers.data_dialog import DataDialogManager, DataType
 from app.flow.onboarding import OnboardingFlow
+from app.managers.appointment_dialog import DataType
+from app.managers.clinic_dialog import ClinicDialog
 from app.managers.conversation import ConversationManager
-from app.models.models import ConfirmIntent, Intent, Message
+from app.models.models import Intent, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.logger import setup_logger
 from app.utils.state_manager import StateManager
@@ -26,11 +27,15 @@ class AppointmentOrchestrator:
             print(current_intent,  'current_intent')
 
             if current_intent == Intent.REQUEST_CLINIC_DATA:
-                await DataDialogManager(self.message, DataType.CLINIC).collect_data()
+                await ClinicDialog(self.message, DataType.CLINIC).collect_data()
+                return
+
+            if self.state.current_intent == Intent.CREATE_APPOINTMENT:
+                await AppointmentFlow(self.message).start()
                 return
 
             if current_intent == Intent.REQUEST_MENU_OPTIONS:
-                await MenuFlow(self.message, DataType.APPOINTMENT).handle_menu_select_response()
+                await MenuFlow(self.message).handle_menu_select_response()
                 return
 
             await OnboardingFlow(self.message).start()

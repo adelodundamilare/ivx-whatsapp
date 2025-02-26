@@ -2,6 +2,7 @@ from app.models.models import ConfirmIntent, Intent, Message
 from app.services.bubble_client import bubble_client
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.state_manager import StateManager
+from app.models.models import main_menu_options
 
 class OnboardingFlow:
     def __init__(self, message: Message):
@@ -11,21 +12,13 @@ class OnboardingFlow:
         self.whatsapp_service = WhatsAppBusinessAPI(message)
 
     async def start(self):
-        # fetch if is first time user ==> user's with language not set
-        # if first time user, introduce bot
-        # present language options and ask user to select
-        # after language is selected, collect clinic data and that'll be all
-        # to change language, ask them to type help
-
-        # if not first time user, fetch clinic data
-        # prom
         clinic_data = await self.fetch_clinic_data()
 
         if not clinic_data:
             await self.register_new_clinic()
             return
 
-        self.show_menu()
+        await self.show_menu()
 
     async def show_menu(self):
 
@@ -40,35 +33,12 @@ We're thrilled to have you here! IVX AIA is your intelligent AI assistant, desig
 
 How can we assist you today?
 """)
-        sections = [
-            {
-                "title": "Products",
-                "rows": [
-                    {
-                        "id": "CREATE_APPOINTMENT",
-                        "title": "Create appointment"
-                    },
-                    {
-                        "id": "CHECK_APPOINTMENT_STATUS",
-                        "title": "Check Status"
-                    },
-                    {
-                        "id": "UPDATE_APPOINTMENT",
-                        "title": "Update appointment"
-                    },
-                    {
-                        "id": "CANCEL_APPOINTMENT",
-                        "title": "Cancel appointment"
-                    }
-                ]
-            }
-        ]
 
         await self.whatsapp_service.send_interactive_list(
             header_text="",
             body_text="Please select an option from this menu",
             button_text="View Options",
-            sections=sections
+            sections=main_menu_options
         )
 
 

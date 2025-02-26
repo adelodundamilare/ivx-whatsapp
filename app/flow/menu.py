@@ -1,5 +1,6 @@
-from app.models.models import ConfirmIntent, Intent, Message
-from app.services.bubble_client import bubble_client
+from app.flow.appointment import AppointmentFlow
+from app.managers.appointment_dialog import AppointmentDialog, DataType
+from app.models.models import Intent, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.state_manager import StateManager
 
@@ -12,7 +13,6 @@ class MenuFlow:
 
     async def handle_menu_select_response(self):
         response = self.message.content
-        print(response, 'response...')
 
         if response == "CREATE_APPOINTMENT":
             await self.create_appointment()
@@ -26,7 +26,11 @@ class MenuFlow:
             await self.whatsapp_service.send_text_message("Invalid option selected. Please try again.")
 
     async def create_appointment(self):
-        await self.whatsapp_service.send_text_message("Yo! we're creating this appointment")
+        self.state_manager.update_state(
+            self.message.phone_number,
+            current_intent=Intent.CREATE_APPOINTMENT
+        )
+        await AppointmentFlow(self.message).start()
 
     async def update_appointment(self):
         await self.whatsapp_service.send_text_message("Yo! we're updating this appointment")

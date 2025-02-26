@@ -28,6 +28,8 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
         message_type = messages.get("type")
 
         business_phone_number_id = value.get("metadata", {}).get("phone_number_id")
+        if not message_type:
+            return
 
         if message_type == "text":
             message_text = messages.get("text", {}).get("body")
@@ -37,8 +39,11 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
             location = messages.get("location", {})
             latitude = location.get("latitude")
             longitude = location.get("longitude")
+            address = location.get("address")
+            name = location.get("name")
             if latitude and longitude:
-                message_text = f"{latitude}, {longitude}"
+                # message_text = f"{latitude}, {longitude}"
+                message_text = address
             else:
                 message_text = "Location data missing."
         elif message_type == "audio":
