@@ -1,6 +1,7 @@
 
 import asyncio
 import traceback
+from app.flow.menu import MenuFlow
 from app.managers.data_dialog import DataDialogManager, DataType
 from app.flow.onboarding import OnboardingFlow
 from app.managers.conversation import ConversationManager
@@ -24,12 +25,12 @@ class AppointmentOrchestrator:
             current_intent = self.state_manager.get_current_intent(self.message.phone_number)
             print(current_intent,  'current_intent')
 
-            if self.state.confirm_intent == ConfirmIntent.REQUEST_CLINIC_DATA:
-                await DataDialogManager(self.message, DataType.CLINIC).handle_confirm_response()
-                return
-
             if current_intent == Intent.REQUEST_CLINIC_DATA:
                 await DataDialogManager(self.message, DataType.CLINIC).collect_data()
+                return
+
+            if current_intent == Intent.REQUEST_MENU_OPTIONS:
+                await MenuFlow(self.message, DataType.APPOINTMENT).handle_menu_select_response()
                 return
 
             await OnboardingFlow(self.message).start()

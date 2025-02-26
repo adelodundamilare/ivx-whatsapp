@@ -8,6 +8,7 @@ import os
 from app.agents import agents
 from app.core.config import settings
 from app.models.models import ConfirmIntent, Message
+from app.services.bubble_client import bubble_client
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils import helpers
 from app.utils.state_manager import StateManager
@@ -55,7 +56,12 @@ class DataDialogManager:
         self.state = self.state_manager.get_state(message.phone_number)
         self.config = DATA_CONFIGS[data_type]
 
-    async def collect_data(self):
+    async def collect_data(self, is_updating_input: bool = False):
+
+        if self.state.confirm_intent == ConfirmIntent.CONFIRM_DATA:
+            await self._handle_confirm_response()
+            return
+
         requested_keys = (
             [self.state.input_request]
             if self.state.input_request
@@ -72,11 +78,11 @@ class DataDialogManager:
             await self._handle_valid_data(merged_data)
 
         if validation_result.invalid_fields:
-            await self._handle_invalid_fields(validation_result.invalid_fields)
+            await self._handle_invalid_fields(validation_result.invalid_fields, is_updating_input)
         else:
             self.state_manager.update_state(
                 self.message.phone_number,
-                confirm_intent=f"CONFIRM_{self.data_type.value.upper()}"
+                confirm_intent=ConfirmIntent.CONFIRM_DATA
             )
             await self._confirm_input(merged_data)
 
@@ -101,8 +107,6 @@ class DataDialogManager:
 
     def _merge_with_existing_data(self, new_data: Dict) -> Dict:
         existing_data = getattr(self.state, f"{self.data_type.value}_data", {})
-        print(self.state, 'state data')
-        print(existing_data, 'existing_data')
         return {**existing_data, **new_data}
 
     def _validate_data(self, data: Dict) -> ValidationResult:
@@ -117,15 +121,19 @@ class DataDialogManager:
         }
         return ValidationResult(invalid_fields, valid_fields)
 
-    async def _handle_invalid_fields(self, invalid_fields: List[str]):
+    async def _handle_invalid_fields(self, invalid_fields: List[str], is_updating_input: bool = False):
         field = invalid_fields[0]
         self.state_manager.update_state(
             self.message.phone_number,
             input_request=field
         )
-        await self.whatsapp_service.send_text_message(
-            f'It looks like there\'s an issue with your {field.replace("_", " ").title()}, kindly re-enter it correctly.'
-        )
+
+        content = f"Apologies, but we were unable to capture your {field.replace('_', ' ').title()}. Please provide a valid input."
+
+        if is_updating_input:
+            content = f"Kindly input your {field.replace('_', ' ').title()}"
+
+        await self.whatsapp_service.send_text_message(content)
 
     async def _handle_valid_data(self, data: Dict):
         existing_data = getattr(self.state, f"{self.data_type.value}_data", {})
@@ -187,112 +195,37 @@ class DataDialogManager:
 
         return [*update_buttons, confirm_button]
 
-# class DialogClinicData(BaseAgent):
-#     def __init__(self, message: Message):
-#         super().__init__()
-#         self.message = message
-#         self.state_manager = StateManager()
-#         self.whatsapp_service = WhatsAppBusinessAPI(self.message)
-#         self.state = self.state_manager.get_state(self.message.phone_number)
-#         self.required_fields = {
-#             Intent.REQUEST_CLINIC_DATA: ["full_name", "clinic_name"]
-#         }
+    async def _handle_confirm_response(self):
+        response = self.message.content
 
-#     async def parse_message_with_ai(self):
-#         requested_keys = self.required_fields.get(Intent.REQUEST_CLINIC_DATA, [])
+        if response == "CONFIRM_ALL":
+            await self._handle_confirmation()
+        elif response.startswith("UPDATE_"):
+            field_to_update = response.replace("UPDATE_", "").lower()
+            await self._handle_field_update(field_to_update)
 
-#         if self.state.input_request:
-#             requested_keys = [self.state.input_request]
+    async def _handle_confirmation(self):
+        # send result to bubble...
+        data = getattr(self.state, f"{self.data_type.value}_data", {})
+        data = { **data, "phone_number": self.message.phone_number }
 
-#         extracted_data = await agents.extractor(requested_keys, self.message.content)
-#         extracted_data = self._clean_data(extracted_data)
-#         extracted_data = {
-#             **self.state.clinic_data,
-#             **extracted_data
-#         }
+        await bubble_client.create_clinic(data)
 
-#         # Check if all required fields are present
-#         invalid_fields = [
-#             field for field in self.required_fields[Intent.REQUEST_CLINIC_DATA]
-#             if field not in extracted_data
-#         ]
+        await self.whatsapp_service.send_text_message(
+            "Great! your data has been saved, feel free to send '/help' to change or update your clinic information."
+        )
+        # show menu prompt...
 
-#         valid_fields = {
-#             field: extracted_data[field]
-#             for field in self.required_fields[Intent.REQUEST_CLINIC_DATA]
-#             if field in extracted_data
-#         }
+    async def _handle_field_update(self, field_to_update: str):
+        invalid_field = [field_to_update]
 
-#         if valid_fields:
-#             updated_clinic_data = {
-#                 **self.state.clinic_data,
-#                 **valid_fields
-#             }
-#             self.state_manager.update_state(
-#                 self.message.phone_number,
-#                 clinic_data=updated_clinic_data
-#             )
+        existing_data = getattr(self.state, f"{self.data_type.value}_data", {})
+        updated_data = {k: v for k, v in existing_data.items() if k != field_to_update}
 
-#         if invalid_fields:
-#             field = invalid_fields[0]
-#             self.state_manager.update_state(self.message.phone_number, input_request=field)
-#             await self.whatsapp_service.send_text_message(
-#                 f'It looks like there\'s an issue with your {field.replace("_", " ").title()}. Please re-enter it correctly.'
-#             )
-#         else:
-#             self.state_manager.update_state(self.message.phone_number, confirm_intent=ConfirmIntent.REQUEST_CLINIC_DATA)
-#             await self._confirm_input(extracted_data)
-
-#         return extracted_data
-
-#     def _clean_data(self, data):
-#         return {
-#             k: v for k, v in data.items()
-#             if v is not None and v != 'Not provided' and (
-#                 not isinstance(v, str) or  # Keep non-string values
-#                 (isinstance(v, str) and v.strip())  # Keep non-empty strings
-#             ) and (k != "full_name" or "doe" not in v.lower())  # Check for placeholder name
-#         }
-
-#     async def _confirm_input(self, data):
-#         formatted_data = "\n".join(f"• {key.replace('_', ' ').title()}: {value}"
-#                               for key, value in data.items())
-
-#         await self.whatsapp_service.send_text_message(
-#             "Please review the information you've provided:\n\n"
-#             f"{formatted_data}"
-#         )
-
-#         buttons = [
-#             {
-#                 "type": "reply",
-#                 "reply": {
-#                     "id": f"UPDATE_{key.upper()}",
-#                     "title": f"Update {key.replace('_', ' ').title()}"
-#                 }
-#             }
-#             for key in data.keys()
-#         ]
-
-#         buttons.append({
-#             "type": "reply",
-#             "reply": {
-#                 "id": "CONFIRM_ALL",
-#                 "title": "✓ Confirm All"
-#             }
-#         })
-
-#         await self.whatsapp_service.send_buttons(
-#             body_text="Is this information correct?",
-#             # footer_text="Select an option to continue",
-#             buttons=buttons[:3]
-#         )
-
-#         if len(buttons) > 3:
-#             for i in range(3, len(buttons), 3):
-#                 chunk = buttons[i:i + 3]
-#                 await self.whatsapp_service.send_buttons(
-#                     header_text="Additional fields:",
-#                     buttons=chunk
-#                 )
-
+        self.state_manager.update_state(
+            self.message.phone_number,
+            confirm_intent=None,
+            **{f"{self.data_type.value}_data": updated_data},
+            input_request=invalid_field
+        )
+        await self.collect_data(is_updating_input=True)

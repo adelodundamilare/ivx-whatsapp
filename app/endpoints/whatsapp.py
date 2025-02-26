@@ -29,9 +29,6 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
 
         business_phone_number_id = value.get("metadata", {}).get("phone_number_id")
 
-        if not messages or not message_text or not message_type:
-            return
-
         if message_type == "text":
             message_text = messages.get("text", {}).get("body")
         elif message_type == "button":
@@ -52,6 +49,9 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
         else:
             # message_text = messages.get("text", {}).get("body")
             logger.warning(f"Unhandled message type: {message_type}")
+
+        if not messages or not message_text or not message_type:
+            return
 
         state = StateManager().get_state(from_number)
         if state.is_processing == True:

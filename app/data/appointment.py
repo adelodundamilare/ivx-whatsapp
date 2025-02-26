@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Dict
 
-from app.services import database
+from app.services import bubble_client
 from app.utils.state_manager import get_current_step, set_current_step
 from app.utils.validator import DataValidator
 
@@ -97,7 +97,7 @@ class AppointmentHandler:
 
     async def _process_appointment(self, data: Dict[str, str]) -> str:
         # Add backend service call here
-        await database.create_appointment(data)
+        await bubble_client.create_appointment(data)
         return (
             f"Great! I'll help you schedule an appointment for a "
             f"*{data['procedure_type']}* procedure on *{data['preferred_date']}* "

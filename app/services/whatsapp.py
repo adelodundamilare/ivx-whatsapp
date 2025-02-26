@@ -87,14 +87,15 @@ class WhatsAppBusinessAPI:
 
     async def send_interactive_list(
         self,
-        to_number: str,
-        header_text: str,
-        body_text: str,
-        footer_text: str,
         button_text: str,
-        sections: List[Dict]
+        body_text: str,
+        header_text: str,
+        sections: List[Dict],
+        footer_text: Optional[str] = None,
+        to_number: Optional[str] = None,
     ) -> Dict:
-        """Send an interactive list message"""
+        to_number = to_number or self.to_number
+
         payload = {
             "messaging_product": "whatsapp",
             "to": to_number,

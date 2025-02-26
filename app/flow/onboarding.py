@@ -1,5 +1,5 @@
 from app.models.models import ConfirmIntent, Intent, Message
-from app.services import database
+from app.services.bubble_client import bubble_client
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.state_manager import StateManager
 
@@ -21,10 +21,56 @@ class OnboardingFlow:
         # prom
         clinic_data = await self.fetch_clinic_data()
 
-        if clinic_data:
-            return clinic_data
+        if not clinic_data:
+            await self.register_new_clinic()
+            return
 
-        await self.register_new_clinic()
+        self.show_menu()
+
+    async def show_menu(self):
+
+        self.state_manager.update_state(
+            self.message.phone_number,
+            current_intent=Intent.REQUEST_MENU_OPTIONS
+        )
+        await self.whatsapp_service.send_text_message(message="""
+Welcome to IVX AIA! 🎉
+
+We're thrilled to have you here! IVX AIA is your intelligent AI assistant, designed to simplify doctor appointment scheduling for your clinic.
+
+How can we assist you today?
+""")
+        sections = [
+            {
+                "title": "Products",
+                "rows": [
+                    {
+                        "id": "CREATE_APPOINTMENT",
+                        "title": "Create appointment"
+                    },
+                    {
+                        "id": "CHECK_APPOINTMENT_STATUS",
+                        "title": "Check Status"
+                    },
+                    {
+                        "id": "UPDATE_APPOINTMENT",
+                        "title": "Update appointment"
+                    },
+                    {
+                        "id": "CANCEL_APPOINTMENT",
+                        "title": "Cancel appointment"
+                    }
+                ]
+            }
+        ]
+
+        await self.whatsapp_service.send_interactive_list(
+            header_text="",
+            body_text="Please select an option from this menu",
+            button_text="View Options",
+            sections=sections
+        )
+
 
     async def fetch_clinic_data(self):
         # first find data in local storage or redis
@@ -36,7 +82,12 @@ class OnboardingFlow:
             return self.state.clinic_data
 
         try:
-            res = await database.find_clinic_by_phone(self.message.phone_number)
+            res = await bubble_client.find_clinic_by_phone(self.message.phone_number)
+
+            self.state_manager.update_state(
+                self.message.phone_number,
+                clinic_data=res
+            )
             return res
         except Exception as e:
             print(e)
@@ -53,13 +104,8 @@ class OnboardingFlow:
             current_intent=Intent.REQUEST_CLINIC_DATA
         )
 
-        await self.whatsapp_service.send_text_message(message="""
-Welcome to IVX AIA! 🎉
-
-We're excited to have you on board! IVX AIA is your intelligent AI assistant, designed to streamline doctor appointment bookings for your clinic. Our goal is to make scheduling effortless, ensuring patients get the care they need while saving your team valuable time.
-
-To get started, please tell us your name and your clinic name; e.g (Name: Franca Gold, Clinic Name: Bob Specialist)
-""")
+        await self.whatsapp_service.send_text_message(message="""Welcome to IVX AIA! 🎉, I'm your AI assistant (AIA), here to help with doctor appointment scheduling.""")
+        await self.whatsapp_service.send_text_message(message="""To get started, please provide your name and clinic name in this format: **Name: [Your Name], Clinic Name: [Your Clinic Name]**  """)
 
     async def collect_clinic_data(self):
         pass

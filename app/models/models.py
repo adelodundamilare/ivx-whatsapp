@@ -18,10 +18,13 @@ class Intent(str, Enum):
     THANK = "thank"
     HELP = "help"
     UNKNOWN = "unknown"
+
+    REQUEST_MENU_OPTIONS = "request_menu_options"
     REQUEST_CLINIC_DATA = "request_clinic_data"
 
 class ConfirmIntent(str, Enum):
     REQUEST_CLINIC_DATA = "request_clinic_data"
+    CONFIRM_DATA = "confirm_data"
 
     @classmethod
     def from_string(cls, value: str) -> Optional["Intent"]:
