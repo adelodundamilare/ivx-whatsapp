@@ -1,5 +1,6 @@
 
 import traceback
+from app.agents import agents
 from app.flow.appointment import AppointmentFlow
 from app.flow.menu import MenuFlow
 from app.flow.onboarding import OnboardingFlow
@@ -23,8 +24,21 @@ class AppointmentOrchestrator:
 
     async def process_message(self):
         try:
-            current_intent = self.state_manager.get_current_intent(self.message.phone_number)
+            current_intent = await agents.intent_agent(self.message.content)
             print(current_intent,  'current_intent')
+
+            # response = await agents.response_agent(
+            #     message=self.message.content,
+            #     user_intent=current_intent,
+            #     conversation_history=self.state.conversation_history,
+            #     appointment_details='',
+            # )
+            response = await agents.generate_generic_response(
+                message=self.message.content,
+                conversation_history=self.state.conversation_history
+            )
+            await self.whatsapp_service.send_text_message(response)
+            return
 
             if current_intent == Intent.REQUEST_CLINIC_DATA:
                 await ClinicDialog(self.message, DataType.CLINIC).collect_data()
@@ -46,6 +60,7 @@ class AppointmentOrchestrator:
             await self.whatsapp_service.send_text_message("I apologize, but I'm having trouble processing your request. Please try again in a moment.")
         finally:
             self.state_manager.update_state(self.message.phone_number, is_processing=False)
+
 
 
     # async def process_message(self, message: Message):

@@ -6,7 +6,6 @@ from app.endpoints import whatsapp
 from fastapi.exceptions import RequestValidationError
 from app.middleware.exceptions import global_exception_handler
 
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description="API for handling WhatsApp messages for anesthesia appointments",

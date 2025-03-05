@@ -57,6 +57,7 @@ class ConversationState(BaseModel):
     last_error: Optional[str] = None
 
     clinic_data: Dict = {}
+    conversation_history: List[Dict[str, str]] = []
     appointment_data: Dict = {}
     confirm_intent: Optional[ConfirmIntent] = None #key would be passed in
     input_request: Optional[str] = None #key would be passed in
@@ -71,6 +72,19 @@ class AppointmentData(BaseModel):
     insurance_info: Optional[str] = None
     special_requirements: Optional[str] = None
 
+    selected_doctor_id: Optional[str] = None
+    notes: Optional[str] = None
+
+    procedure_details: Optional[str] = None
+    doctor_specialization: Optional[str] = None
+
+class Doctor(BaseModel):
+    id: str
+    name: str
+    specialties: List[str]
+    available_times: List[Dict[str, Any]]
+    clinic_id: str
+    rating: Optional[float] = None
 
 class DataType(Enum):
     CLINIC = "clinic"
@@ -82,6 +96,29 @@ class ValidationResult:
     invalid_fields: List[str]
     valid_fields: Dict[str, Any]
 
+class ProcedureType(str, Enum):
+    CONSULTATION = "consultation"
+    SURGERY = "surgery"
+    FOLLOW_UP = "follow_up"
+    EMERGENCY = "emergency"
+    SPECIALIZED = "specialized"
+
+class MessageType(str, Enum):
+    TEXT = "text"
+    OPTION = "option"
+    DATE = "date"
+    TIME = "time"
+    CONFIRMATION = "confirmation"
+
+class UMessage(BaseModel):
+    text: str
+    type: MessageType
+    options: Optional[List[str]] = None
+    sender: str  # "user" or "assistant"
+
+class Language(str, Enum):
+    ENGLISH = "english"
+    SPANISH = "spanish"
 
 main_menu_options = [
     {

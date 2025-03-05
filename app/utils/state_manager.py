@@ -37,6 +37,8 @@ class StateManager:
         if phone_number in self.conversation_state:
             del self.conversation_state[phone_number]
 
+    # delete the rest
+
     def get_current_intent(self, phone_number: str) -> Intent:
         state = self.get_state(phone_number)
         return state.current_intent

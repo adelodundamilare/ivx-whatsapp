@@ -50,7 +50,6 @@ DATA_CONFIGS = {
         field_prompts={
             "patient_name": "Kindly input the patient's name",
             "patient_age_range": "What is the patient's age?",
-
             "date": "What date would you like to book? (DD-MM-YYYY)",
             "time": "What time would you prefer? (e.g. 14:00)",
             "patient_gender": "What is the patient's gender?",

@@ -1,1 +1,38 @@
-Generic single-database configuration.
+# Clinic Appointment Scheduling AI Assistant
+
+## Overview
+This is an advanced AI-powered clinic appointment scheduling system built with FastAPI and OpenAI. The application uses multiple AI agents to create an engaging, conversational interface for managing medical appointments.
+
+## Key Features
+- Conversational AI for appointment scheduling
+- Multiple intelligent agents working together
+- WebSocket and REST API support
+- Intent recognition
+- Entity extraction
+- Flexible conversation management
+
+## Agents
+1. **Dialogue Management Agent**: Manages conversation flow and context
+2. **Intent Recognition Agent**: Understands user's primary goal
+3. **Entity Extraction Agent**: Identifies key information like dates, names, specialties
+4. **Response Generation Agent**: Creates contextually appropriate responses
+
+## Setup and Installation
+1. Clone the repository
+2. Create a virtual environment
+3. Install dependencies: `pip install -r requirements.txt`
+4. Set your OpenAI API key in `.env`
+5. Run the application: `uvicorn main:app --reload`
+
+## Usage
+- Use WebSocket endpoint for real-time chat
+- Use REST API for single message interactions
+
+## Future Improvements
+- Integrate with actual clinic scheduling system
+- Add more sophisticated error handling
+- Implement persistent storage for conversations
+- Enhance entity extraction accuracy
+
+## Contributing
+Contributions are welcome! Please submit pull requests or open issues.

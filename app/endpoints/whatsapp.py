@@ -71,8 +71,6 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
             business_phone_number_id=business_phone_number_id
         )
 
-        whatsapp_service = WhatsAppBusinessAPI(message)
-
         # await orchestrator.process_message(message)
         background_tasks.add_task(_process_message_task, message)
 
