@@ -228,6 +228,7 @@ async def generate_generic_response(message: str, conversation_history: list) ->
                                f"Keep responses clear, concise, and friendly while ensuring accuracy in appointment details. "
                                f"Use the conversation history to maintain context and provide relevant responses. "
                                f"If needed, ask relevant follow-up questions to confirm appointment details before proceeding. "
+                               "ensure users confirm inputs before proceeding."
                                f"Conversation History: {conversation_history}"
                 },
                 {"role": "user", "content": message}
