@@ -6,8 +6,6 @@ from fastapi import HTTPException
 from app.core.config import settings
 from app.utils.logger import setup_logger
 
-BUBBLE_API_KEY = settings.BUBBLE_API_KEY
-BUBBLE_API_URL = settings.BUBBLE_API_URL
 DEFAULT_TIMEOUT = 30
 
 logger = setup_logger("bubble_api", "bubble_api.log")
@@ -23,10 +21,10 @@ class DateTimeEncoder(json.JSONEncoder):
 class BubbleApiClient:
     """Client for interacting with Bubble API"""
 
-    def __init__(self, api_url: str = BUBBLE_API_URL, api_key: str = BUBBLE_API_KEY):
-        self.api_url = api_url
-        self.api_key = api_key
-        self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    def __init__(self):
+        self.api_url = settings.BUBBLE_API_URL
+        self.api_key = settings.BUBBLE_API_KEY
+        self.headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
     async def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None,
                            params: Optional[Dict] = None, expected_status_codes: tuple = (200, 201)) -> Any:

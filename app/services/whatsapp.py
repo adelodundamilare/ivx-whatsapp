@@ -451,7 +451,7 @@ class WhatsAppBusinessAPI:
                     logger.error(f"API request failed: {response.text}")
                     return {"error": response.text, "status_code": response.status_code}
 
-                self._update_conversation_state(payload)
+                # self._update_conversation_state(payload)
 
                 return response.json()
             except Exception as e:

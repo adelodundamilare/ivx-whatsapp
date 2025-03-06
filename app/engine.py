@@ -8,6 +8,7 @@ from app.managers.appointment_dialog import DataType
 from app.managers.clinic_dialog import ClinicDialog
 from app.managers.conversation import ConversationManager
 from app.models.models import Intent, Message
+from app.services.langgraph import ClinicAssistant
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.logger import setup_logger
 from app.utils.state_manager import StateManager
@@ -24,8 +25,15 @@ class AppointmentOrchestrator:
 
     async def process_message(self):
         try:
-            current_intent = await agents.intent_agent(self.message.content)
-            print(current_intent,  'current_intent')
+            user_input = self.message.content
+            user_phone = self.message.phone_number
+
+            if user_input.lower() in ["quit", "exit"]:
+                response = "Thank you for using our service. Have a great day!"
+            else:
+                response = await ClinicAssistant(self.message).process_message(user_input, user_phone)
+            await self.whatsapp_service.send_text_message(response)
+            return
 
             # response = await agents.response_agent(
             #     message=self.message.content,
