@@ -20,32 +20,3 @@ class IntentAgent(BaseAgent):
             temperature=0.3
         )
         return Intent.from_string(response.choices[0].message.content.strip().strip())
-
-    async def get_confirmation_intent(self, message: str) -> Intent:
-        try:
-            prompt = """
-            Is this message a confirmation (yes) or denial (no)? If unclear, respond with 'unknown'.
-            Consider common variations like 'sure, thanks', 'okay, thanks', 'nope', 'yes thanks' etc.
-            Respond with exactly one word: 'CONFIRM', 'DENY', or 'UNKNOWN'.
-            """
-
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": prompt},
-                    {"role": "user", "content": message}
-                ],
-                temperature=0.3
-            )
-
-            result = response.choices[0].message.content.strip().upper()
-            if result == 'CONFIRM':
-                return Intent.CONFIRM
-            elif result == 'DENY':
-                return Intent.DENY
-            else:
-                return Intent.UNKNOWN
-
-        except Exception as e:
-            # logger.error(f"Error in confirmation intent analysis: {str(e)}")
-            return Intent.UNKNOWN

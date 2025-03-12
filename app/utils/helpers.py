@@ -1,6 +1,53 @@
 from datetime import datetime
 import re
+from typing import Dict
+from app.models.models import Message
+from app.services.whatsapp import WhatsAppBusinessAPI
+from langchain_core.runnables.history import RunnableWithMessageHistory # type: ignore
+from langchain_community.chat_message_histories import ChatMessageHistory # type: ignore
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder # type: ignore
+from langchain_openai import ChatOpenAI # type: ignore
+import os
 
+llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0.7)
+
+response_prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", "You are AIA, a professional and friendly AI assistant helping clinics connect with doctors. Use the conversation history to maintain context. Respond conversationally to: '{input}'. Guide the user proactively with suggestions (e.g., 'Would you like to book an appointment?')."),
+        MessagesPlaceholder(variable_name="chat_history"),
+        ("human", "{input}"),
+    ]
+)
+response_chain = response_prompt | llm
+
+response_history: Dict[str, ChatMessageHistory] = {}
+def get_message_history(clinic_phone: str) -> ChatMessageHistory:
+    if clinic_phone not in response_history:
+        response_history[clinic_phone] = ChatMessageHistory()
+        print(f"Initialized new history for {clinic_phone}")
+    return response_history[clinic_phone]
+
+def get_response_runnable(clinic_phone: str) -> RunnableWithMessageHistory:
+    return RunnableWithMessageHistory(
+        runnable=response_chain,
+        get_session_history=lambda session_id: get_message_history(session_id),
+        input_messages_key="input",
+        history_messages_key="chat_history",
+    )
+
+async def invoke_ai(prompt:str, clinic_phone:str):
+    runnable = get_response_runnable(clinic_phone)
+    response = await runnable.ainvoke(
+        {"input": prompt},
+        config={"configurable": {"session_id": clinic_phone}}
+    )
+    return response.content
+
+async def send_response(clinic_phone: str, response_message: str, message: Message):
+    history = get_message_history(clinic_phone)
+    history.add_ai_message(response_message)
+    whatsapp_service = WhatsAppBusinessAPI(message)
+    await whatsapp_service.send_text_message(to_number=clinic_phone, message=response_message)
 
 # def parse_relative_date(date_expression):
 #     date_expression = date_expression.lower().strip()
@@ -124,3 +171,4 @@ def validate_time(time_str: str) -> bool:
         return True
 
     return False
+

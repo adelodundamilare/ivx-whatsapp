@@ -459,7 +459,7 @@ class WhatsAppBusinessAPI:
                 return {"error": str(e)}
             finally:
                 if to_number:
-                    self.state_manager.update_state(to_number, is_processing=False)
+                    self.state_manager.update_state(to_number, {"is_processing":False})
 
     def _update_conversation_state(self, payload):
             phone_number = payload.get('to')

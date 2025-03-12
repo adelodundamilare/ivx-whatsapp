@@ -59,7 +59,8 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
             return
 
         state = StateManager().get_state(from_number)
-        if state.is_processing == True:
+
+        if state.get('is_processing') == True:
             return {"status": "ok"}
 
         message = Message(

@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, TypedDict, Union
 from pydantic import BaseModel
 
 class Intent(str, Enum):
@@ -45,8 +45,8 @@ class Message(BaseModel):
     business_phone_number_id: str
 
 class ConversationState(BaseModel):
-    phone_number: Optional[str]=None
     current_intent: Optional[Intent] = None
+    phone_number: Optional[str]=None
     collected_data: Dict = {}
     missing_fields: List[str] = []
     last_interaction: Optional[datetime]=datetime.now()
@@ -143,3 +143,32 @@ main_menu_options = [
         ]
     }
 ]
+
+class AppointmentState(TypedDict):
+    clinic_info: Optional[Dict] = {'full_name': None, 'clinic_name': None, 'phone_number': None}
+    procedure_info: Optional[Dict] = None
+    doctor_preferences: Optional[List[str]] = None
+    current_doctor_index: int = 0
+    selected_doctor: Optional[Dict] = None
+    appointment_confirmed: bool = False
+
+    is_processing: bool = False
+    history: List[Dict[str, str]] = []
+    phone_number: Optional[str]=None
+    collected_data: Dict = {}
+    missing_fields: List[str] = []
+
+
+class ClinicState(TypedDict):
+    user_input: str
+    full_name: str
+    clinic_name: str
+    gender: str
+    procedure_type: str
+    date: str
+    time: str
+    appointment: dict
+    doctor_index: int
+    needs_clarification: bool
+    intent: str
+    clarification_attempts: int

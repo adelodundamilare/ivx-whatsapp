@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict
+from typing import Dict, List
 import os
 from app.core.config import settings
 from app.models.models import Language
@@ -103,7 +103,7 @@ If switching from English to Spanish or vice versa, maintain consistent tone and
     except Exception as e:
         print(f"{str(e)}")
 
-async def intent_agent(message: str) -> Dict:
+async def intent_agent(message: str, history: List[Dict]) -> Dict:
     template = f"""
 Identify the primary intent of the user's message.
 Possible intents:
@@ -241,3 +241,20 @@ async def generate_generic_response(message: str, conversation_history: list) ->
     except Exception as e:
         print(f"An error occurred: {e}")
         return "Sorry, there was an error processing your request."
+
+async def generate_ai_response(prompt: str, history: list = None, system_msg: str = "You're AIA, a professional and friendly AI assistant helping clinics connect with doctors. Maintain a conversational tone and guide the user proactively.") -> str:
+    messages = [{"role": "system", "content": system_msg}]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": prompt})
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            temperature=0.7
+        )
+
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"OpenAI error: {str(e)}")
+        return "Oops, something went wrong! Let's try again."

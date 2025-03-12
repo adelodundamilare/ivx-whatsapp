@@ -14,17 +14,28 @@ from app.utils.logger import setup_logger
 from app.utils.state_manager import StateManager
 
 logger = setup_logger("engine", "engine.log")
+clinic_agents = {}
 
 class AppointmentOrchestrator:
     def __init__(self, message: Message):
         self.message = message
-        self.conversation_manager = ConversationManager()
         self.whatsapp_service = WhatsAppBusinessAPI(message)
+        self.conversation_manager = ConversationManager()
         self.state_manager = StateManager()
         self.state = StateManager().get_state(self.message.phone_number)
 
     async def process_message(self):
+
         try:
+            user_phone = self.message.phone_number
+
+            clinic_assistant = ClinicAssistant(message=self.message)
+            await clinic_assistant.process_message(clinic_phone=user_phone, user_input=self.message.content)
+            # print(response, 'responseooooooooooooooooooooooooo')
+            # await self.whatsapp_service.send_text_message(response)
+            return
+
+
             user_input = self.message.content
             user_phone = self.message.phone_number
 
@@ -67,7 +78,7 @@ class AppointmentOrchestrator:
 
             await self.whatsapp_service.send_text_message("I apologize, but I'm having trouble processing your request. Please try again in a moment.")
         finally:
-            self.state_manager.update_state(self.message.phone_number, is_processing=False)
+            self.state_manager.update_state(self.message.phone_number, {"is_processing":False})
 
 
 
