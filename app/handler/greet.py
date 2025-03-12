@@ -4,13 +4,17 @@ from app.services.bubble_client import bubble_client
 from app.utils.collect_data import DataCollector
 from app.utils.helpers import invoke_ai, send_response
 from app.utils.state_manager import StateManager
+from app.utils.logger import setup_logger
 
+
+logger = setup_logger("greet_handler", "greet_handler.log")
 
 class GreetingHandler:
-    def __init__(self, message: Message):
+    def __init__(self, intent: str, message: Message):
         self.state_manager = StateManager()
         self.state = self.state_manager.get_state(message.phone_number)
         self.message = message
+        self.intent = intent
         self.clinic_phone = self.state.get("clinic_phone", "")
         self.user_input = self.state.get("user_input", "")
         self.full_name = self.state.get("full_name", "")
@@ -27,10 +31,10 @@ class GreetingHandler:
 
                 if self._has_missing_fields():
                     await self._request_clarification()
-                    return {"needs_clarification": True}
+                    return self.collector.update_state({"needs_clarification": True, "intent": self.intent})
 
         await self._send_greeting()
-        return {"needs_clarification": False}
+        return self.collector.update_state({"needs_clarification": False, "intent": None})
 
     def _has_missing_fields(self) -> bool:
         current_data = self._get_current_data()
@@ -90,10 +94,12 @@ class GreetingHandler:
             self.collector.update_state(update_data)
 
             if not self._has_missing_fields():
+                # @todo: confirm input and proceed when user is cool, handle reject
                 await self._save_to_database()
 
     async def _save_to_database(self) -> None:
         """Save collected data to database"""
+        logger.info('calling::: _save_to_database')
         await bubble_client.create_clinic(data={
             "full_name": self.full_name,
             "clinic_name": self.clinic_name,
@@ -115,6 +121,6 @@ class GreetingHandler:
 
     async def _send_greeting(self) -> None:
         """Send greeting message with collected information"""
-        prompt = f"Respond warmly to this user's message - {self.user_input}. If appropriate, greet them using their name ({self.full_name}) and clinic name ({self.clinic_name}). Then, guide the conversation by asking how you can assist them today. Offer options such as booking, canceling, or checking appointments."
+        prompt = f"Respond warmly to the user's message: '{self.user_input}'. If appropriate, greet them using their name ({self.full_name}) and acknowledge the clinic they represent ({self.clinic_name}). Then, guide the conversation by asking how you can assist them today. Offer options such as booking, canceling, or checking appointments."
         response = await invoke_ai(prompt, self.clinic_phone)
         await send_response(clinic_phone=self.clinic_phone, response_message=response, message=self.message)

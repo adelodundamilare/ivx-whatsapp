@@ -13,7 +13,7 @@ llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", tem
 
 response_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are AIA, a professional and friendly AI assistant helping clinics connect with doctors. Use the conversation history to maintain context. Respond conversationally to: '{input}'. Guide the user proactively with suggestions (e.g., 'Would you like to book an appointment?')."),
+        ("system", "You are AIA, a professional and friendly AI assistant helping clinics - the user - connect with doctors. Use the conversation history to maintain context. Respond conversationally to: '{input}'. Guide the user proactively with suggestions (e.g., 'Would you like to book an appointment?')."),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
     ]
@@ -25,7 +25,9 @@ def get_message_history(clinic_phone: str) -> ChatMessageHistory:
     if clinic_phone not in response_history:
         response_history[clinic_phone] = ChatMessageHistory()
         print(f"Initialized new history for {clinic_phone}")
-    return response_history[clinic_phone]
+    res =  response_history[clinic_phone]
+    # print(res, 'get_message_history oooooooooooooooooooooooooooooooooooooooooooo')
+    return res
 
 def get_response_runnable(clinic_phone: str) -> RunnableWithMessageHistory:
     return RunnableWithMessageHistory(

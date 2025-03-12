@@ -89,6 +89,7 @@ class StateManager:
             "time": "",
             "appointment": {},
             "doctor_index": 0,
+            "history": [],
             "needs_clarification": False,
             "is_processing": False,
             "intent": "",
@@ -99,7 +100,6 @@ class StateManager:
         if clinic_phone not in self.states:
             self.states[clinic_phone] = self.get_state(clinic_phone)
 
-        print(updates, 'updates 1')
         self.states[clinic_phone].update(updates)
         self._save_states()
 

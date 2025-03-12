@@ -71,6 +71,7 @@ class BubbleApiClient:
     async def create_appointment(self, data: Dict) -> bool:
         """Create a new appointment"""
         try:
+            print('sending data to bubble', data)
             result = await self._make_request("post", "appointments", data=data)
             return result
         except HTTPException as e:

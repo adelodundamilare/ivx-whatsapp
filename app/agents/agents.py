@@ -110,14 +110,7 @@ Possible intents:
 - schedule_appointment: User wants to book a new appointment
 - cancel_appointment: User wants to cancel an existing appointment
 - reschedule_appointment: User wants to change an existing appointment
-- inquire_doctors: User is asking about available doctors
-- inquire_services: User is asking about available medical services
-- provide_information: User is providing information for their appointment
-- confirm: User is confirming something
-- deny: User is declining something
-- greeting: User is greeting the system
-- farewell: User is ending the conversation
-- help: User needs assistance with using the system
+- greet: User is greeting the system
 - other: None of the above
 
 User message: {message}

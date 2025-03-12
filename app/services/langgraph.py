@@ -3,12 +3,13 @@ import asyncio
 import json
 import os
 import re
-from typing import TypedDict
-from app.agents.agents import extractor
+from typing import Dict, List, TypedDict
+from app.agents.agents import extractor, intent_agent
 from app.handler.greet import GreetingHandler
+from app.handler.procedure_collector import ProcedureCollector
 from app.models.models import ClinicState, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
-from app.utils.helpers import get_message_history, invoke_ai
+from app.utils.helpers import get_message_history, invoke_ai, send_response
 from app.utils.logger import setup_logger
 from app.utils.state_manager import StateManager
 from langgraph.graph import StateGraph, START, END # type: ignore
@@ -998,41 +999,23 @@ logger = setup_logger("langgraph", "langgraph.log")
 
 
 from langgraph.graph import StateGraph, END # type: ignore
-from typing import TypedDict, Dict
+from typing import TypedDict
 import asyncio
 from datetime import datetime, timedelta
-from langchain.prompts import ChatPromptTemplate # type: ignore
 import logging
-from langchain_openai import ChatOpenAI # type: ignore
 import json
 import os
 import re
 
 state_manager = StateManager()
 
-llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0.7)
-# LangChain Setup
-
-# Intent and Entity Extraction Chain with Error Handling
-intent_prompt = ChatPromptTemplate.from_template(
-    "Classify the intent of: '{input}' and extract entities. Return a JSON object with double quotes around property names and values, e.g., {{\"intent\": \"greet\", \"confidence\": 0.5, \"entities\": {{\"name\": \"\", \"clinic_location\": \"\"}}, \"needs_clarification\": true}}. Intents include 'book_doctor', 'cancel_appointment', 'check_status', or 'greet'. Recognize 'i have an appointment i want to terminate' as 'cancel_appointment'. Flag vague inputs (e.g., 'hi') with low confidence and true needs_clarification. Ensure the output is valid JSON."
-)
-
-def clean_json_string(text: str) -> str:
-    """Clean up the LLM output to ensure valid JSON."""
-    json_match = re.search(r'\{.*\}', text, re.DOTALL)
-    if not json_match:
-        logger.error(f"Invalid JSON output: {text}")
-        return '{"intent": "greet", "confidence": 0.5, "entities": {"full_name": "", "clinic_name": "", "patient_name": "", "procedure": "", "date": "", "time": "", "doctor": "", "confirmation": ""}, "needs_clarification": true}'
-
-    json_str = json_match.group(0)
-    json_str = re.sub(r"(?<!\\)'", '"', json_str)
-    json_str = re.sub(r',\s*}', '}', json_str)
-    json_str = re.sub(r',\s*]', ']', json_str)
-    return json_str
-
-intent_chain = intent_prompt | llm | (lambda x: json.loads(clean_json_string(x.content)))
-
+valid_intents = {
+    "schedule_appointment": "collect_procedure",
+    "cancel_appointment": "confirm_cancel",
+    "check_status": "check_status",
+    "greet": "greet"
+}
+# memory = ConversationBufferMemory()
 
 # Define the state schema
 class ClinicState(TypedDict):
@@ -1054,150 +1037,88 @@ class ClinicAssistant:
         self.message = message
         self.whatsapp_service = WhatsAppBusinessAPI(message)
         self.state_manager = StateManager()
+        self.state = self.state_manager.get_state(message.phone_number)
         self.graph = self._build_graph()
+
+    def _update_state(self, data: Dict):
+        self.state_manager.update_state(self.message.phone_number, data)
 
 
 
     async def greet(self, state: ClinicState) -> ClinicState:
-        handler = GreetingHandler(message=self.message)
+        print('calling greet kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = GreetingHandler(intent="greet", message=self.message)
         return await handler.process()
-    # async def greet(self, state: ClinicState) -> ClinicState:
-    #     clinic_phone = state.get("clinic_phone", "")
-    #     user_input = state.get("user_input", "")
-    #     full_name = state.get("full_name", "")
-    #     clinic_name = state.get("clinic_name", "")
 
-    #     if not full_name or not clinic_name:
-    #         clinic_data = await bubble_client.find_clinic_by_phone(clinic_phone)
-    #         full_name = clinic_data.get('full_name')
-    #         clinic_name = clinic_data.get('clinic_name')
+    async def intro(self, _) -> ClinicState:
+        print('calling intro kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = GreetingHandler(intent="greet",message=self.message)
+        await handler._send_greeting()
+        return {"needs_clarification": True}
 
-    #         if full_name and clinic_name:
-    #             state_manager.update_state(clinic_phone, {
-    #                 "full_name": full_name,
-    #                 "clinic_name": clinic_name
-    #             })
-
-    #         if not full_name or not clinic_name:
-    #             collector = DataCollector(clinic_phone, user_input)
-    #             required_fields = ['full_name', 'clinic_name']
-    #             current_data = {"full_name": full_name,"clinic_name": clinic_name}
-
-    #             missing_fields = collector.get_missing_fields(required_fields, current_data)
-
-    #             if missing_fields:
-    #                 clinic_data = {}
-
-    #                 if clinic_data:
-    #                     for field in missing_fields.copy():
-    #                         if field in clinic_data and collector._is_valid_value(clinic_data[field]):
-    #                             current_data[field] = clinic_data[field]
-    #                             missing_fields.remove(field)
-
-    #                     collector.update_state(current_data)
-
-
-    #                 state_manager.update_state(clinic_phone, {
-    #                     "full_name": full_name,
-    #                     "clinic_name": clinic_name
-    #                 })
-    #                 # confirm data
-    #                 await bubble_client.create_clinic(data={"full_name": full_name, "clinic_name": clinic_name, "phone_number": clinic_phone})
-
-    #             if not full_name or not clinic_name:
-    #                 prompt = f"Respond warmly to this user message  - {user_input} - as AIA, an assistant helping clinics connect with doctors. If appropriate, acknowledge the user's message first. Then, ask for their full name and clinic name in a friendly, conversational way."
-    #                 response = await self._invoke_ai(prompt, clinic_phone)
-    #                 await self._send_response(clinic_phone, response)
-    #                 return { "needs_clarification": True }
-
-    #     prompt = f"Respond warmly to this user's message - {user_input}. If appropriate, greet them using their name ({full_name}) and clinic name ({clinic_name})."
-    #     response = await self._invoke_ai(prompt, clinic_phone)
-    #     await self._send_response(clinic_phone, response)
-    #     return {"needs_clarification": False}
-
-    async def classify_intent(self, state: ClinicState) -> ClinicState:
-        clinic_phone = state.get("clinic_phone", "")
-        user_input = state.get("user_input", "")
-
-        intent_data = await intent_chain.ainvoke({"input": user_input})
-        intent = intent_data.get("intent", "greet")
-        confidence = intent_data.get("confidence", 0.0)
-        needs_clarification = intent_data.get("needs_clarification", True)
-
-        if needs_clarification or confidence < 0.7:
-            prompt = f"The user said: '{user_input}'. Based on the context, ask for clarification in a friendly way to understand their intent (e.g., booking, canceling, checking status)."
-            response = await self._invoke_ai(prompt, clinic_phone)
-            await self._send_response(clinic_phone, response)
-            return {
-                "intent": intent,
-                "needs_clarification": True,
-                "clarification_attempts": state.get("clarification_attempts", 0) + 1
-            }
-
-        return {
-            "intent": intent,
-            "needs_clarification": False,
-            "clarification_attempts": 0
-        }
-
-    async def collect_procedure(self, state: ClinicState) -> ClinicState:
+    async def classify_intent(self, _: ClinicState) -> ClinicState:
+        print('calling classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        state = self.state
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
         full_name = state.get("full_name", "")
         clinic_name = state.get("clinic_name", "")
+        old_intent = state.get("intent", "intro")
 
-        if state.get("needs_clarification", True):
-            requested_keys = ["procedure_type", "date", "time", "additional_note"]
-            # if not full_name:
-            #     requested_keys.append('full_name')
-            # if not clinic_name:
-            #     requested_keys.append('clinic_name')
+        if not full_name or not clinic_name:
+            return self._update_state({
+                "intent": "greet",
+                "needs_clarification": False
+            })
 
-            print(requested_keys, 'requested_keys')
-            entities = await extractor(requested_keys=requested_keys, message=user_input)
-            procedure_type = entities.get("procedure_type")
-            time = entities.get("time")
-            date = entities.get("date")
+        if state.get("needs_clarification", False) and old_intent:
+            return self._update_state({
+                "intent": old_intent,
+                "needs_clarification": False
+            })
 
-            if not procedure_type:
-                prompt = f"Ask {full_name} at {clinic_name} for the patient's name and procedure (e.g., checkup, surgery) in a conversational way."
-                response = await self._invoke_ai(prompt, clinic_phone)
-                await self._send_response(clinic_phone, response)
-                return {
-                    "procedure_type": procedure_type,
-                    "needs_clarification": True,
-                    "clarification_attempts": state.get("clarification_attempts", 0) + 1
-                }
+        history = get_message_history(clinic_phone)
+        intent = await intent_agent(message=user_input, history=history)
+        print(intent, 'classify_intent')
 
-        prompt = f"Thank {full_name} at {clinic_name} for providing the procedure ({procedure_type}), and inform them you'll look for an available doctor."
-        response = await self._invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
-        # confirm and send to backend...
-        return {
-            "needs_clarification": False,
-            "doctor_index": 0
-        }
+        if intent in valid_intents:
+            return self._update_state({
+                "intent": intent,
+                "needs_clarification": False
+            })
+        else:
+            return self._update_state({
+                "intent": intent,
+                "needs_clarification": True
+            })
+
+    async def collect_procedure(self, state: ClinicState) -> ClinicState:
+        print('calling collect_procedure kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = ProcedureCollector(intent="collect_procedure", message=self.message)
+        return await handler.process()
 
     async def prompt_doctors(self, state: ClinicState) -> ClinicState:
+        print('calling prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
-        name = state.get("name", "")
-        clinic_location = state.get("clinic_location", "")
+        full_name = state.get("full_name", "")
+        clinic_name = state.get("clinic_name", "")
         patient_name = state.get("patient_name", "")
         procedure = state.get("procedure", "")
         doctor_index = state.get("doctor_index", 0)
 
-        doctors = await self.db.get_doctors_by_location(clinic_location)
+        # doctors = await self.db.get_doctors_by_location(clinic_name)
+        doctors = []
         if doctor_index >= len(doctors):
-            prompt = f"Inform {name} at {clinic_location} that no doctors are available for {procedure}, and suggest trying a different procedure or contacting support."
+            prompt = f"Inform {full_name} at {clinic_name} that no doctors are available for {procedure}, and suggest trying a different procedure or contacting support."
             response = await invoke_ai(prompt, clinic_phone)
-            await self._send_response(clinic_phone, response)
+            await send_response(clinic_phone, response, message=self.message)
             return {}
 
         doctor = doctors[doctor_index]
         datetime_slot = (datetime.now() + timedelta(days=2)).strftime("%A, %B %d at 2:00 PM")
-        prompt = f"Propose to {name} at {clinic_location} that {doctor} is available for {procedure} for {patient_name} on {datetime_slot}. Ask for confirmation (yes/no)."
+        prompt = f"Propose to {full_name} at {clinic_name} that {doctor} is available for {procedure} for {patient_name} on {datetime_slot}. Ask for confirmation (yes/no)."
         response = await invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
+        await send_response(clinic_phone, response, message=self.message)
         return {
             "doctor": doctor,
             "datetime": datetime_slot,
@@ -1206,13 +1127,15 @@ class ClinicAssistant:
         }
 
     async def confirm_booking(self, state: ClinicState) -> ClinicState:
+        print('calling confirm_booking kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
         name = state.get("name", "")
         clinic_location = state.get("clinic_location", "")
 
         if state.get("needs_clarification", True):
-            intent_data = await intent_chain.ainvoke({"input": user_input})
+            # history
+            intent_data = await intent_agent(message=user_input)
             accepted = intent_data.get("entities", {}).get("confirmation", user_input.lower()) == "yes"
 
             if accepted:
@@ -1231,20 +1154,21 @@ class ClinicAssistant:
                 asyncio.create_task(self.db.schedule_reminder(clinic_phone, appointment, clinic_location))
                 prompt = f"Confirm to {name} at {clinic_location} that {state['procedure']} for {state['patient_name']} with {state['doctor']} on {state['datetime']} is booked. Mention a reminder will be sent 1 day before, and ask if they need help with anything else."
                 response = await invoke_ai(prompt, clinic_phone)
-                await self._send_response(clinic_phone, response)
+                await send_response(clinic_phone, response, message=self.message)
                 return {"appointment": appointment, "needs_clarification": False}
             else:
                 prompt = f"Let {name} at {clinic_location} know you'll look for another doctor for {state['patient_name']}'s {state['procedure']}, and ask if they have a preferred date."
                 response = await invoke_ai(prompt, clinic_phone)
-                await self._send_response(clinic_phone, response)
+                await send_response(clinic_phone, response, message=self.message)
                 return {"needs_clarification": False}
 
         prompt = "Please respond with 'yes' or 'no' to confirm the booking."
         response = await invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
+        await send_response(clinic_phone, response, message=self.message)
         return {"needs_clarification": True}
 
     async def confirm_cancel(self, state: ClinicState) -> ClinicState:
+        print('calling confirm_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         name = state.get("name", "")
         clinic_location = state.get("clinic_location", "")
@@ -1253,12 +1177,12 @@ class ClinicAssistant:
         if not appointment:
             prompt = f"Inform {name} at {clinic_location} that no appointments were found to cancel, and ask if they'd like to book one instead."
             response = await invoke_ai(prompt, clinic_phone)
-            await self._send_response(clinic_phone, response)
+            await send_response(clinic_phone, response, message=self.message)
             return {}
 
         prompt = f"Ask {name} at {clinic_location} to confirm cancellation of the appointment: {appointment['procedure']} for {appointment['patient_name']} with {appointment['doctor']} on {appointment['datetime']} (yes/no), and offer to help with something else if they decline."
         response = await invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
+        await send_response(clinic_phone, response, message=self.message)
         return {
             "appointment": appointment,
             "needs_clarification": True
@@ -1271,24 +1195,24 @@ class ClinicAssistant:
         clinic_location = state.get("clinic_location", "")
 
         if state.get("needs_clarification", True):
-            intent_data = await intent_chain.ainvoke({"input": user_input})
+            intent_data = await intent_agent(message=user_input)
             confirmed = intent_data.get("entities", {}).get("confirmation", user_input.lower()) == "yes"
 
             if confirmed:
                 await self.db.cancel_appointment(clinic_phone)
                 prompt = f"Let {name} at {clinic_location} know the appointment for {state['appointment']['patient_name']} has been cancelled, and ask if they need help with anything else."
                 response = await invoke_ai(prompt, clinic_phone)
-                await self._send_response(clinic_phone, response)
+                await send_response(clinic_phone, response, message=self.message)
                 return {"appointment": {}, "needs_clarification": False}
             else:
                 prompt = f"Inform {name} at {clinic_location} that the cancellation was aborted, and ask how else they'd like to proceed."
                 response = await invoke_ai(prompt, clinic_phone)
-                await self._send_response(clinic_phone, response)
+                await send_response(clinic_phone, response, message=self.message)
                 return {"needs_clarification": False}
 
         prompt = "Please respond with 'yes' or 'no' to confirm the cancellation."
         response = await invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
+        await send_response(clinic_phone, response, message=self.message)
         return {"needs_clarification": True}
 
     async def check_status(self, state: ClinicState) -> ClinicState:
@@ -1303,37 +1227,49 @@ class ClinicAssistant:
         else:
             prompt = f"Inform {name} at {clinic_location} about their appointment: {appointment['procedure']} for {appointment['patient_name']} with {appointment['doctor']} on {appointment['datetime']}, and ask if they need help with anything else."
         response = await invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
+        await send_response(clinic_phone, response, message=self.message)
         return {"appointment": appointment}
 
-    async def wrap_up(self, state: ClinicState) -> ClinicState:
+    async def wrap_up(self, _) -> ClinicState:
+        state = self.state
+        print('calling wrap_up kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         name = state.get("name", "")
         clinic_location = state.get("clinic_location", "")
 
-        prompt = f"Thank {name} at {clinic_location} for the conversation, and ask if there's anything else they need help with before ending the session."
+        prompt = f"Thank {name} from {clinic_location} for the conversation, and ask if there's anything else they need help with before ending the session."
         response = await invoke_ai(prompt, clinic_phone)
-        await self._send_response(clinic_phone, response)
+        await send_response(clinic_phone, response, message=self.message)
         return {"needs_clarification": True}
 
     # Routing Functions
-    def _route_after_greet(self, state: ClinicState) -> str:
+    def _route_after_greet(self, _: ClinicState) -> str:
+        state = self.state
         if state.get("needs_clarification", False):
             return END
-        return "classify_intent"
+        return END
 
-    def _route_after_classify(self, state: ClinicState) -> str:
-        if state.get("needs_clarification", False) and state.get("clarification_attempts", 0) < 3:
-            return "classify_intent"
-        intent = state.get("intent", "greet")
+    def _route_after_classify(self, _: ClinicState) -> str:
+        state = self.state
+        if state.get("needs_clarification", False):
+            return END
+
+        intent = state.get("intent")
+        if not intent:
+            return END
+
         print(intent, 'intent yyyyyyyyyyyyyyyyyyyy')
-        return {
-            "book_doctor": "collect_procedure",
-            "cancel_appointment": "confirm_cancel",
-            "check_status": "check_status"
-        }.get(intent, "wrap_up")
 
-    def _route_after_collect_procedure(self, state: ClinicState) -> str:
+        return valid_intents.get(intent, "intro")
+
+        # return {
+        #     "schedule_appointment": "collect_procedure",
+        #     "cancel_appointment": "confirm_cancel",
+        #     "check_status": "check_status"
+        # }.get(intent, "intro")
+
+    def _route_after_collect_procedure(self, _: ClinicState) -> str:
+        state = self.state
         if state.get("needs_clarification", False):
             return END
         return "prompt_doctors"
@@ -1364,6 +1300,11 @@ class ClinicAssistant:
             return END
         return "wrap_up"
 
+    def _route_after_intro(self, state: ClinicState) -> str:
+        if state.get("needs_clarification", False):
+            return END
+        return "intro"
+
     def _build_graph(self) -> StateGraph:
         workflow = StateGraph(ClinicState)
         workflow.add_node("greet", self.greet)
@@ -1375,8 +1316,9 @@ class ClinicAssistant:
         workflow.add_node("process_cancel", self.process_cancel)
         workflow.add_node("check_status", self.check_status)
         workflow.add_node("wrap_up", self.wrap_up)
+        workflow.add_node("intro", self.intro)
 
-        workflow.set_entry_point("greet")
+        workflow.set_entry_point("classify_intent")
         workflow.add_conditional_edges("greet", self._route_after_greet)
         workflow.add_conditional_edges("classify_intent", self._route_after_classify)
         workflow.add_conditional_edges("collect_procedure", self._route_after_collect_procedure)
@@ -1386,6 +1328,7 @@ class ClinicAssistant:
         workflow.add_conditional_edges("process_cancel", self._route_after_process_cancel)
         workflow.add_conditional_edges("check_status", self._route_after_check_status)
         workflow.add_conditional_edges("wrap_up", self._route_after_wrap_up)
+        workflow.add_conditional_edges("intro", self._route_after_intro)
 
         return workflow.compile()
 
@@ -1397,19 +1340,20 @@ class ClinicAssistant:
 
         history = get_message_history(clinic_phone)
         history.add_user_message(user_input)  # Use synchronous add for simplicity
-        logger.info(f"Added user message to history for {clinic_phone}: {user_input}")
+        # logger.info(f"Added user message to history for {clinic_phone}: {user_input}")
 
         final_response = None
         async for output in self.graph.astream(
             state,
             config={"configurable": {"session_id": clinic_phone}}
         ):
-            logger.info(f"Node output: {output}")
+            # logger.info(f"Node output: {output}")
             # node_name = list(output.keys())[0]
             # node_data = output[node_name]
 
             # Update state with node output
             # state.update(node_data)
+            # print(state, 'staterrrrrrrrrrrrrrrrrrrrrr')
             # state_manager.update_state(clinic_phone, state)
 
             # Capture the last response from the history
