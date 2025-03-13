@@ -224,19 +224,17 @@ Could you kindly confirm if everything looks good or let me know what you'd like
         await send_response(phone, message, message=self.message)
 
     def _update_state_data(self, appointment_updates=None, **state_updates):
-        current_appointment_data = self.appointment
-
-        state_update = {}
-        for key, value in state_updates.items():
-            state_update[key] = value
+        state_update = dict(state_updates)  # Create a copy of state_updates
 
         if appointment_updates:
-            for field, value in appointment_updates.items():
-                if hasattr(self, field):
-                    setattr(self, field, value)
+            updated_appointment = self.appointment.copy()
 
-        updated_appointment = {**current_appointment_data, **appointment_updates}
-        state_update["appointment"] = updated_appointment
+            for field, value in appointment_updates.items():
+                updated_appointment[field] = value
+
+            state_update["appointment"] = updated_appointment
+        else:
+            state_update["appointment"] = self.appointment.copy()
 
         return self.collector.update_state(state_update)
 

@@ -1261,7 +1261,7 @@ Respond with only the intent label.
         state = self.state
         if state.get("needs_clarification"):
             return END
-        return "prompt_doctors"
+        return "wrap_up"
 
     def _route_after_prompt_doctors(self, state: ClinicState) -> str:
         print('calling _route_after_prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
