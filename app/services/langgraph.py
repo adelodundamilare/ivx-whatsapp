@@ -281,7 +281,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             }
 
 #         prompt = f"Classify the intent of: '{user_input}' and determine if clarification is needed. " \
-#                  f"Options: book_doctor, edit_appointment, cancel_appointment, check_status. " \
+#                  f"Options: book_doctor, edit_appointment, cancel_appointment, check_appointment_status. " \
 #                  f"Return valid JSON: {{'intent': '...', 'confidence': 0.0-1.0, 'needs_clarification': true/false}}. " \
 #                  f"If the input is vague (e.g., 'hi', 'just checking'), set confidence low and request clarification. " \
 #                  f"Recognize 'i have an appointment i want to terminate' as 'cancel_appointment'."
@@ -317,7 +317,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #                 "clarification_attempts": self._get_safe_state(state, "clarification_attempts", 0) + 1
 #             }
 
-#     async def collect_procedure(self, state: ClinicState) -> ClinicState:
+#     async def create_appointment(self, state: ClinicState) -> ClinicState:
 #         clinic_name = self._get_clinic_info(state, "name")
 #         clinic_location = self._get_clinic_info(state, "clinic")
 #         clarification_attempts = self._get_safe_state(state, "clarification_attempts", 0)
@@ -333,7 +333,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #                     return {
 #                         "messages": [{"role": "assistant", "content": response}],
 #                         "needs_clarification": True,
-#                         "conversation_step": "collect_procedure",
+#                         "conversation_step": "create_appointment",
 #                         "clarification_attempts": clarification_attempts + 1
 #                     }
 #             except json.JSONDecodeError:
@@ -342,7 +342,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #                 return {
 #                     "messages": [{"role": "assistant", "content": response}],
 #                     "needs_clarification": True,
-#                     "conversation_step": "collect_procedure",
+#                     "conversation_step": "create_appointment",
 #                     "clarification_attempts": clarification_attempts + 1
 #                 }
 
@@ -353,7 +353,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             return {
 #                 "messages": [{"role": "assistant", "content": response}],
 #                 "needs_clarification": True,
-#                 "conversation_step": "collect_procedure",
+#                 "conversation_step": "create_appointment",
 #                 "clarification_attempts": clarification_attempts + 1
 #             }
 
@@ -368,19 +368,19 @@ logger = setup_logger("langgraph", "langgraph.log")
 #                 return {
 #                     "messages": [{"role": "assistant", "content": response}],
 #                     "needs_clarification": True,
-#                     "conversation_step": "collect_procedure",
+#                     "conversation_step": "create_appointment",
 #                     "clarification_attempts": clarification_attempts + 1
 #                 }
 #             state["appointment"]["procedure"] = procedure
 #             state["appointment"]["patient_name"] = patient_name
-#             return {"appointment": state["appointment"], "needs_clarification": False, "conversation_step": "collect_procedure"}
+#             return {"appointment": state["appointment"], "needs_clarification": False, "conversation_step": "create_appointment"}
 #         except json.JSONDecodeError:
 #             prompt = "I couldn't identify the procedure or patient name. Please specify (e.g., 'checkup for John Doe')."
 #             response = await self._call_openai(prompt)
 #             return {
 #                 "messages": [{"role": "assistant", "content": response}],
 #                 "needs_clarification": True,
-#                 "conversation_step": "collect_procedure",
+#                 "conversation_step": "create_appointment",
 #                 "clarification_attempts": clarification_attempts + 1
 #             }
 
@@ -432,13 +432,13 @@ logger = setup_logger("langgraph", "langgraph.log")
 #                 "clarification_attempts": self._get_safe_state(state, "clarification_attempts", 0) + 1
 #             }
 
-#     async def confirm_cancel(self, state: ClinicState) -> ClinicState:
+#     async def cancel_appointment(self, state: ClinicState) -> ClinicState:
 #         clinic_name = self._get_clinic_info(state, "name")
 #         existing_appt = self.db.find_appointment(state["clinic_phone"])
 #         if not existing_appt:
 #             prompt = f"Inform {clinic_name} staff that no patient appointment exists to cancel."
 #             response = await self._call_openai(prompt)
-#             return {"messages": [{"role": "assistant", "content": response}], "conversation_step": "confirm_cancel"}
+#             return {"messages": [{"role": "assistant", "content": response}], "conversation_step": "cancel_appointment"}
 
 #         prompt = f"Ask {clinic_name} staff to confirm cancellation of the patient's {existing_appt['procedure']} " \
 #                  f"for {existing_appt['patient_name']} with {existing_appt['doctor']} at {existing_appt['clinic_location']} on {existing_appt['datetime']} (yes/no)."
@@ -446,7 +446,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #         return {
 #             "messages": [{"role": "assistant", "content": response}],
 #             "needs_clarification": True,
-#             "conversation_step": "confirm_cancel",
+#             "conversation_step": "cancel_appointment",
 #             "clarification_attempts": self._get_safe_state(state, "clarification_attempts", 0) + 1
 #         }
 
@@ -477,7 +477,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             return {"messages": [{"role": "assistant", "content": response}], "appointment": {}, "conversation_step": "process_cancel"}
 #         return {"messages": [{"role": "assistant", "content": "Cancellation aborted. How else can I assist with patient bookings?"}], "conversation_step": "process_cancel"}
 
-#     async def check_status(self, state: ClinicState) -> ClinicState:
+#     async def check_appointment_status(self, state: ClinicState) -> ClinicState:
 #         clinic_name = self._get_clinic_info(state, "name")
 #         clinic_location = self._get_clinic_info(state, "clinic")
 #         existing_appt = self.db.find_appointment(state["clinic_phone"])
@@ -487,7 +487,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             prompt = f"Report to {clinic_name} staff the status of the patient's appointment: " \
 #                      f"{existing_appt['procedure']} for {existing_appt['patient_name']} with {existing_appt['doctor']} at {clinic_location} on {existing_appt['datetime']}."
 #         response = await self._call_openai(prompt)
-#         return {"messages": [{"role": "assistant", "content": response}], "conversation_step": "check_status"}
+#         return {"messages": [{"role": "assistant", "content": response}], "conversation_step": "check_appointment_status"}
 
 #     async def initiate_doctor_search(self, state: ClinicState) -> ClinicState:
 #         clinic_name = self._get_clinic_info(state, "name")
@@ -531,7 +531,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #         response = await self._call_openai(prompt)
 #         return {"messages": [{"role": "assistant", "content": response}], "needs_clarification": True, "conversation_step": "propose_doctor"}
 
-#     async def confirm_booking(self, state: ClinicState) -> ClinicState:
+#     async def confirm_appointment(self, state: ClinicState) -> ClinicState:
 #         clinic_name = self._get_clinic_info(state, "name")
 #         clinic_location = self._get_clinic_info(state, "clinic")
 #         appointment = self._get_safe_state(state, "appointment", {})
@@ -543,7 +543,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             return {
 #                 "messages": [{"role": "assistant", "content": "Please respond with 'yes' or 'no' to confirm."}],
 #                 "needs_clarification": True,
-#                 "conversation_step": "confirm_booking",
+#                 "conversation_step": "confirm_appointment",
 #                 "clarification_attempts": self._get_safe_state(state, "clarification_attempts", 0) + 1
 #             }
 
@@ -555,7 +555,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             response = await self._call_openai(prompt)
 #             await self._send_whatsapp_message(self.db.doctors[appointment["doctor"]]["phone"], response)
 #             asyncio.create_task(self._schedule_reminder(state["clinic_phone"], appointment, clinic_location))
-#             return {"messages": [{"role": "assistant", "content": response}], "conversation_step": "confirm_booking"}
+#             return {"messages": [{"role": "assistant", "content": response}], "conversation_step": "confirm_appointment"}
 #         prompt = "Inform the clinic staff that you'll look for another available doctor and proceed."
 #         response = await self._call_openai(prompt)
 #         return {"messages": [{"role": "assistant", "content": response}], "doctor_index": self._get_safe_state(state, "doctor_index", 0) + 1, "conversation_step": "prompt_doctors"}
@@ -609,20 +609,20 @@ logger = setup_logger("langgraph", "langgraph.log")
 
 #     def _route_after_classify(self, state: ClinicState) -> str:
 #         if self._get_safe_state(state, "needs_clarification", False) and self._get_safe_state(state, "clarification_attempts", 0) < 3:
-#             return "collect_procedure" if self._get_safe_state(state, "intent") == "book_doctor" else self._get_safe_state(state, "intent", "error")
+#             return "create_appointment" if self._get_safe_state(state, "intent") == "book_doctor" else self._get_safe_state(state, "intent", "error")
 #         intent = self._get_safe_state(state, "intent", "book_doctor")
 #         return {
-#             "book_doctor": "collect_procedure",
+#             "book_doctor": "create_appointment",
 #             "edit_appointment": "collect_edit",
-#             "cancel_appointment": "confirm_cancel",
-#             "check_status": "check_status"
+#             "cancel_appointment": "cancel_appointment",
+#             "check_appointment_status": "check_appointment_status"
 #         }.get(intent, "error")
 
-#     def _route_after_collect_procedure(self, state: ClinicState) -> str:
+#     def _route_after_create_appointment(self, state: ClinicState) -> str:
 #         clarification_attempts = self._get_safe_state(state, "clarification_attempts", 0)
 #         if self._get_safe_state(state, "needs_clarification", False) and clarification_attempts >= 3:
 #             return "error"
-#         return "initiate_doctor_search" if not self._get_safe_state(state, "needs_clarification", False) else "collect_procedure"
+#         return "initiate_doctor_search" if not self._get_safe_state(state, "needs_clarification", False) else "create_appointment"
 
 #     def _route_after_collect_edit(self, state: ClinicState) -> str:
 #         clarification_attempts = self._get_safe_state(state, "clarification_attempts", 0)
@@ -633,16 +633,16 @@ logger = setup_logger("langgraph", "langgraph.log")
 #     def _route_after_process_edit(self, state: ClinicState) -> str:
 #         return "wrap_up"
 
-#     def _route_after_confirm_cancel(self, state: ClinicState) -> str:
+#     def _route_after_cancel_appointment(self, state: ClinicState) -> str:
 #         clarification_attempts = self._get_safe_state(state, "clarification_attempts", 0)
 #         if self._get_safe_state(state, "needs_clarification", False) and clarification_attempts >= 3:
 #             return "error"
-#         return "process_cancel" if not self._get_safe_state(state, "needs_clarification", False) else "confirm_cancel"
+#         return "process_cancel" if not self._get_safe_state(state, "needs_clarification", False) else "cancel_appointment"
 
 #     def _route_after_process_cancel(self, state: ClinicState) -> str:
 #         return "wrap_up"
 
-#     def _route_after_check_status(self, state: ClinicState) -> str:
+#     def _route_after_check_appointment_status(self, state: ClinicState) -> str:
 #         return "wrap_up"
 
 #     def _route_after_initiate(self, state: ClinicState) -> str:
@@ -655,10 +655,10 @@ logger = setup_logger("langgraph", "langgraph.log")
 #         clarification_attempts = self._get_safe_state(state, "clarification_attempts", 0)
 #         if self._get_safe_state(state, "needs_clarification", False) and clarification_attempts >= 3:
 #             return "error"
-#         return "confirm_booking" if self._get_safe_state(state, "needs_clarification", False) else "prompt_doctors"
+#         return "confirm_appointment" if self._get_safe_state(state, "needs_clarification", False) else "prompt_doctors"
 
 #     def _route_after_confirm(self, state: ClinicState) -> str:
-#         return "wrap_up" if not self._get_safe_state(state, "needs_clarification", False) else "confirm_booking"
+#         return "wrap_up" if not self._get_safe_state(state, "needs_clarification", False) else "confirm_appointment"
 
 #     def _route_after_action(self, state: ClinicState) -> str:
 #         clarification_attempts = self._get_safe_state(state, "clarification_attempts", 0)
@@ -676,8 +676,8 @@ logger = setup_logger("langgraph", "langgraph.log")
 #             return "error"
 
 #         if needs_clarification:
-#             logger.info("Routing back to collect_procedure for clarification")
-#             return "collect_procedure"
+#             logger.info("Routing back to create_appointment for clarification")
+#             return "create_appointment"
 
 #         logger.info("No clarification needed, ending graph")
 #         return END
@@ -686,32 +686,32 @@ logger = setup_logger("langgraph", "langgraph.log")
 #         workflow = StateGraph(ClinicState)
 #         workflow.add_node("greet", self.greet)
 #         workflow.add_node("classify", self.classify_intent)
-#         workflow.add_node("collect_procedure", self.collect_procedure)
+#         workflow.add_node("create_appointment", self.create_appointment)
 #         workflow.add_node("collect_edit", self.collect_edit)
 #         workflow.add_node("process_edit", self.process_edit)
-#         workflow.add_node("confirm_cancel", self.confirm_cancel)
+#         workflow.add_node("cancel_appointment", self.cancel_appointment)
 #         workflow.add_node("process_cancel", self.process_cancel)
-#         workflow.add_node("check_status", self.check_status)
+#         workflow.add_node("check_appointment_status", self.check_appointment_status)
 #         workflow.add_node("initiate_doctor_search", self.initiate_doctor_search)
 #         workflow.add_node("prompt_doctors", self.prompt_doctors)
 #         workflow.add_node("propose_doctor", self.propose_doctor)
-#         workflow.add_node("confirm_booking", self.confirm_booking)
+#         workflow.add_node("confirm_appointment", self.confirm_appointment)
 #         workflow.add_node("wrap_up", self.wrap_up)
 #         workflow.add_node("error", self.handle_error)
 
 #         workflow.set_entry_point("greet")
 #         workflow.add_conditional_edges("greet", self._route_after_greet)
 #         workflow.add_conditional_edges("classify", self._route_after_classify)
-#         workflow.add_conditional_edges("collect_procedure", self._route_after_collect_procedure)
+#         workflow.add_conditional_edges("create_appointment", self._route_after_create_appointment)
 #         workflow.add_conditional_edges("collect_edit", self._route_after_collect_edit)
 #         workflow.add_conditional_edges("process_edit", self._route_after_process_edit)
-#         workflow.add_conditional_edges("confirm_cancel", self._route_after_confirm_cancel)
+#         workflow.add_conditional_edges("cancel_appointment", self._route_after_cancel_appointment)
 #         workflow.add_conditional_edges("process_cancel", self._route_after_process_cancel)
-#         workflow.add_conditional_edges("check_status", self._route_after_check_status)
+#         workflow.add_conditional_edges("check_appointment_status", self._route_after_check_appointment_status)
 #         workflow.add_conditional_edges("initiate_doctor_search", self._route_after_initiate)
 #         workflow.add_conditional_edges("prompt_doctors", self._route_after_prompt)
 #         workflow.add_conditional_edges("propose_doctor", self._route_after_propose)
-#         workflow.add_conditional_edges("confirm_booking", self._route_after_confirm)
+#         workflow.add_conditional_edges("confirm_appointment", self._route_after_confirm)
 #         workflow.add_conditional_edges("wrap_up", self._route_after_action)
 #         workflow.add_conditional_edges("error", self._route_after_action)
 
@@ -907,9 +907,9 @@ logger = setup_logger("langgraph", "langgraph.log")
 # def propose_doctor_node(state: GraphState):
 #     proposed_doctor_id = "doctor1"
 #     return {"proposed_doctor_id": proposed_doctor_id, "response": f"Proposing Dr. Smith (doctor1). Do you confirm?"}
-# def confirm_booking_node(state: GraphState):
+# def confirm_appointment_node(state: GraphState):
 #     doctor_agent = DoctorAgent("doctor1")
-#     booking_confirmation = doctor_agent.confirm_booking(f"{state.procedure_details} for Clinic {state.clinic_id}")
+#     booking_confirmation = doctor_agent.confirm_appointment(f"{state.procedure_details} for Clinic {state.clinic_id}")
 #     return {"response": f"{booking_confirmation}. Appointment scheduled and confirmed."}
 # def handle_unknown_intent_node(state: GraphState):
 #     return {"response": "Sorry, I didn't understand that. How can I help?"}
@@ -920,7 +920,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #         "Greet": "greet",
 #         "BookAppointment": "ask_procedure_info",
 #         "ProvideProcedureInfo": "extract_procedure_info",
-#         "ConfirmDoctor": "confirm_booking",
+#         "ConfirmDoctor": "confirm_appointment",
 #         "Unknown": "handle_unknown_intent",
 #     }
 #     return intent_map.get(state.intent, "handle_unknown_intent") # Default to unknown if intent not in map
@@ -934,7 +934,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 # #     elif intent == "ProvideProcedureInfo":
 # #         return "extract_procedure_info"
 # #     elif intent == "ConfirmDoctor":
-# #         return "confirm_booking"
+# #         return "confirm_appointment"
 # #     elif intent == "Unknown":
 # #         return "handle_unknown_intent"
 # #     else:
@@ -957,7 +957,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 #         if doctor_info and doctor_info["availability"]:
 #             return f"Dr. {doctor_info['name']} is available for {procedure_details}."
 #         return f"Dr. {doctor_info['name']} is not available right now."
-#     def confirm_booking(self, appointment_details):
+#     def confirm_appointment(self, appointment_details):
 #         doctor_info = get_doctor_info(self.doctor_id)
 #         if doctor_info and doctor_info["availability"]:
 #             update_doctor_availability(self.doctor_id, False)
@@ -971,7 +971,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 # builder.add_node("extract_procedure_info", extract_procedure_info_node)
 # builder.add_node("search_doctor", search_doctor_node)
 # builder.add_node("propose_doctor", propose_doctor_node)
-# builder.add_node("confirm_booking", confirm_booking_node)
+# builder.add_node("confirm_appointment", confirm_appointment_node)
 # builder.add_node("handle_unknown_intent", handle_unknown_intent_node)
 
 # builder.add_edge(START, "identify_intent")
@@ -980,8 +980,8 @@ logger = setup_logger("langgraph", "langgraph.log")
 # builder.add_edge("ask_procedure_info", END)
 # builder.add_edge("extract_procedure_info", "search_doctor")
 # builder.add_edge("search_doctor", "propose_doctor")
-# builder.add_edge("propose_doctor", "confirm_booking")
-# builder.add_edge("confirm_booking", END)
+# builder.add_edge("propose_doctor", "confirm_appointment")
+# builder.add_edge("confirm_appointment", END)
 # builder.add_edge("handle_unknown_intent", END)
 
 # workflow = builder.compile()
@@ -1010,42 +1010,26 @@ import re
 state_manager = StateManager()
 
 valid_intents = {
-    "schedule_appointment": "collect_procedure",
-    "cancel_appointment": "confirm_cancel",
-    "check_status": "check_status",
+    "create_appointment": "create_appointment",
+    "cancel_appointment": "cancel_appointment",
+    "check_appointment_status": "check_appointment_status",
     "greet": "greet"
 }
 # memory = ConversationBufferMemory()
-
-# Define the state schema
-class ClinicState(TypedDict):
-    user_input: str
-    name: str
-    clinic_location: str
-    patient_name: str
-    procedure: str
-    doctor: str
-    datetime: str
-    appointment: dict
-    doctor_index: int
-    needs_clarification: bool
-    intent: str
-    clarification_attempts: int
-
 class ClinicAssistant:
     def __init__(self, message: Message):
         self.message = message
         self.whatsapp_service = WhatsAppBusinessAPI(message)
         self.state_manager = StateManager()
-        self.state = self.state_manager.get_state(message.phone_number)
         self.graph = self._build_graph()
+    @property
+    def state(self):
+        return self.state_manager.get_state(self.message.phone_number)
 
     def _update_state(self, data: Dict):
         self.state_manager.update_state(self.message.phone_number, data)
 
-
-
-    async def greet(self, state: ClinicState) -> ClinicState:
+    async def greet(self, _: ClinicState) -> ClinicState:
         print('calling greet kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         handler = GreetingHandler(intent="greet", message=self.message)
         return await handler.process()
@@ -1053,49 +1037,53 @@ class ClinicAssistant:
     async def intro(self, _) -> ClinicState:
         print('calling intro kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         handler = GreetingHandler(intent="greet",message=self.message)
-        await handler._send_greeting()
-        return {"needs_clarification": True}
+        return await handler.general_response()
+
+    async def create_appointment(self, _: ClinicState) -> ClinicState:
+        print('calling create_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = ProcedureCollector(intent="create_appointment", message=self.message)
+        return await handler.process()
 
     async def classify_intent(self, _: ClinicState) -> ClinicState:
         print('calling classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
+        print(state, 'classify_intent state kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
-        full_name = state.get("full_name", "")
-        clinic_name = state.get("clinic_name", "")
-        old_intent = state.get("intent", "intro")
 
-        if not full_name or not clinic_name:
-            return self._update_state({
-                "intent": "greet",
-                "needs_clarification": False
-            })
+        if not state.get("clinic_name", "") or not state.get("full_name", ""):
+            return "greet"
 
-        if state.get("needs_clarification", False) and old_intent:
-            return self._update_state({
-                "intent": old_intent,
-                "needs_clarification": False
-            })
+        if state.get("needs_clarification") and state.get("intent") != "other":
+            return state.get("intent")
 
-        history = get_message_history(clinic_phone)
-        intent = await intent_agent(message=user_input, history=history)
-        print(intent, 'classify_intent')
+        prompt = f"""
+Identify the primary intent of the user's message.
+
+Use the conversation history to maintain context and determine the intent.
+
+Possible intents:
+- create_appointment: User wants to book a new appointment
+- cancel_appointment: User wants to cancel an existing appointment
+- edit_appointment: User wants to change or update an existing appointment
+- greet: User is greeting the system
+- other: None of the above
+
+User message: {user_input}
+
+Respond with only the intent label.
+"""
+        intent = await invoke_ai(prompt, clinic_phone)
+        print(intent, 'classify_intent intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
 
         if intent in valid_intents:
             return self._update_state({
                 "intent": intent,
                 "needs_clarification": False
             })
-        else:
-            return self._update_state({
-                "intent": intent,
-                "needs_clarification": True
-            })
 
-    async def collect_procedure(self, state: ClinicState) -> ClinicState:
-        print('calling collect_procedure kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        handler = ProcedureCollector(intent="collect_procedure", message=self.message)
-        return await handler.process()
+        return self._update_state({ "needs_clarification": True })
 
     async def prompt_doctors(self, state: ClinicState) -> ClinicState:
         print('calling prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
@@ -1126,8 +1114,8 @@ class ClinicAssistant:
             "needs_clarification": True
         }
 
-    async def confirm_booking(self, state: ClinicState) -> ClinicState:
-        print('calling confirm_booking kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+    async def confirm_appointment(self, state: ClinicState) -> ClinicState:
+        print('calling confirm_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
         name = state.get("name", "")
@@ -1167,8 +1155,8 @@ class ClinicAssistant:
         await send_response(clinic_phone, response, message=self.message)
         return {"needs_clarification": True}
 
-    async def confirm_cancel(self, state: ClinicState) -> ClinicState:
-        print('calling confirm_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+    async def cancel_appointment(self, state: ClinicState) -> ClinicState:
+        print('calling cancel_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         name = state.get("name", "")
         clinic_location = state.get("clinic_location", "")
@@ -1189,6 +1177,7 @@ class ClinicAssistant:
         }
 
     async def process_cancel(self, state: ClinicState) -> ClinicState:
+        print('calling process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
         name = state.get("name", "")
@@ -1215,7 +1204,8 @@ class ClinicAssistant:
         await send_response(clinic_phone, response, message=self.message)
         return {"needs_clarification": True}
 
-    async def check_status(self, state: ClinicState) -> ClinicState:
+    async def check_appointment_status(self, state: ClinicState) -> ClinicState:
+        print('calling check_appointment_status kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
         name = state.get("name", "")
         clinic_location = state.get("clinic_location", "")
@@ -1231,8 +1221,8 @@ class ClinicAssistant:
         return {"appointment": appointment}
 
     async def wrap_up(self, _) -> ClinicState:
-        state = self.state
         print('calling wrap_up kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        state = self.state
         clinic_phone = state.get("clinic_phone", "")
         name = state.get("name", "")
         clinic_location = state.get("clinic_location", "")
@@ -1244,64 +1234,70 @@ class ClinicAssistant:
 
     # Routing Functions
     def _route_after_greet(self, _: ClinicState) -> str:
+        print('calling _route_after_greet kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
         if state.get("needs_clarification", False):
             return END
         return END
 
     def _route_after_classify(self, _: ClinicState) -> str:
+        print('calling _route_after_classify kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
-        if state.get("needs_clarification", False):
-            return END
+        # print(state, '_route_after_classify state yyyyyyyyyyyyyyyyyyyy')
+
+        if not state.get("clinic_name", "") or not state.get("full_name", ""):
+            return "greet"
+
+        if state.get("needs_clarification") and state.get("intent") != "other":
+            return state.get("intent")
 
         intent = state.get("intent")
-        if not intent:
-            return END
-
         print(intent, 'intent yyyyyyyyyyyyyyyyyyyy')
 
         return valid_intents.get(intent, "intro")
 
-        # return {
-        #     "schedule_appointment": "collect_procedure",
-        #     "cancel_appointment": "confirm_cancel",
-        #     "check_status": "check_status"
-        # }.get(intent, "intro")
-
-    def _route_after_collect_procedure(self, _: ClinicState) -> str:
+    def _route_after_create_appointment(self, _: ClinicState) -> str:
+        print('calling _route_after_create_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
-        if state.get("needs_clarification", False):
+        if state.get("needs_clarification"):
             return END
         return "prompt_doctors"
 
     def _route_after_prompt_doctors(self, state: ClinicState) -> str:
-        if state.get("needs_clarification", True):
-            return "confirm_booking"
+        print('calling _route_after_prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        if state.get("needs_clarification"):
+            return "confirm_appointment"
         return "prompt_doctors"
 
-    def _route_after_confirm_booking(self, state: ClinicState) -> str:
-        if state.get("needs_clarification", False):
-            return "confirm_booking"
+    def _route_after_confirm_appointment(self, state: ClinicState) -> str:
+        print('calling _route_after_confirm_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        if state.get("needs_clarification"):
+            return "confirm_appointment"
         return "wrap_up"
 
-    def _route_after_confirm_cancel(self, state: ClinicState) -> str:
-        if state.get("needs_clarification", True):
+    def _route_after_cancel_appointment(self, state: ClinicState) -> str:
+        print('calling _route_after_cancel_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        if state.get("needs_clarification"):
             return "process_cancel"
-        return "confirm_cancel"
+        return "cancel_appointment"
 
     def _route_after_process_cancel(self, state: ClinicState) -> str:
+        print('calling _route_after_process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         return "wrap_up"
 
-    def _route_after_check_status(self, state: ClinicState) -> str:
+    def _route_after_check_appointment_status(self, state: ClinicState) -> str:
+        print('calling _route_after_process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         return "wrap_up"
 
     def _route_after_wrap_up(self, state: ClinicState) -> str:
-        if state.get("needs_clarification", False):
+        print('calling _route_after_wrap_up kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        if state.get("needs_clarification"):
             return END
         return "wrap_up"
 
     def _route_after_intro(self, state: ClinicState) -> str:
-        if state.get("needs_clarification", False):
+        print('calling _route_after_intro kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        if state.get("needs_clarification"):
             return END
         return "intro"
 
@@ -1309,26 +1305,26 @@ class ClinicAssistant:
         workflow = StateGraph(ClinicState)
         workflow.add_node("greet", self.greet)
         workflow.add_node("classify_intent", self.classify_intent)
-        workflow.add_node("collect_procedure", self.collect_procedure)
+        workflow.add_node("create_appointment", self.create_appointment)
         workflow.add_node("prompt_doctors", self.prompt_doctors)
-        workflow.add_node("confirm_booking", self.confirm_booking)
-        workflow.add_node("confirm_cancel", self.confirm_cancel)
+        workflow.add_node("confirm_appointment", self.confirm_appointment)
+        workflow.add_node("cancel_appointment", self.cancel_appointment)
         workflow.add_node("process_cancel", self.process_cancel)
-        workflow.add_node("check_status", self.check_status)
+        workflow.add_node("check_appointment_status", self.check_appointment_status)
         workflow.add_node("wrap_up", self.wrap_up)
         workflow.add_node("intro", self.intro)
 
         workflow.set_entry_point("classify_intent")
         workflow.add_conditional_edges("greet", self._route_after_greet)
         workflow.add_conditional_edges("classify_intent", self._route_after_classify)
-        workflow.add_conditional_edges("collect_procedure", self._route_after_collect_procedure)
+        workflow.add_conditional_edges("create_appointment", self._route_after_create_appointment)
         workflow.add_conditional_edges("prompt_doctors", self._route_after_prompt_doctors)
-        workflow.add_conditional_edges("confirm_booking", self._route_after_confirm_booking)
-        workflow.add_conditional_edges("confirm_cancel", self._route_after_confirm_cancel)
+        workflow.add_conditional_edges("confirm_appointment", self._route_after_confirm_appointment)
+        workflow.add_conditional_edges("cancel_appointment", self._route_after_cancel_appointment)
         workflow.add_conditional_edges("process_cancel", self._route_after_process_cancel)
-        workflow.add_conditional_edges("check_status", self._route_after_check_status)
+        workflow.add_conditional_edges("check_appointment_status", self._route_after_check_appointment_status)
         workflow.add_conditional_edges("wrap_up", self._route_after_wrap_up)
-        workflow.add_conditional_edges("intro", self._route_after_intro)
+        # workflow.add_conditional_edges("intro", "classify_intent")
 
         return workflow.compile()
 
@@ -1338,8 +1334,8 @@ class ClinicAssistant:
         state["clinic_phone"] = clinic_phone
         state["needs_clarification"] = False
 
-        history = get_message_history(clinic_phone)
-        history.add_user_message(user_input)  # Use synchronous add for simplicity
+        # history = get_message_history(clinic_phone)
+        # history.add_user_message(user_input)  # Use synchronous add for simplicity
         # logger.info(f"Added user message to history for {clinic_phone}: {user_input}")
 
         final_response = None
@@ -1347,18 +1343,20 @@ class ClinicAssistant:
             state,
             config={"configurable": {"session_id": clinic_phone}}
         ):
-            # logger.info(f"Node output: {output}")
+            logger.info(f"Node output: {output}")
             # node_name = list(output.keys())[0]
             # node_data = output[node_name]
 
             # Update state with node output
             # state.update(node_data)
-            # print(state, 'staterrrrrrrrrrrrrrrrrrrrrr')
             # state_manager.update_state(clinic_phone, state)
 
             # Capture the last response from the history
-            messages = history.messages  # Use synchronous messages attribute
-            if messages and messages[-1].type == "ai":
-                final_response = messages[-1].content
+            # messages = history.messages  # Use synchronous messages attribute
+            # if messages and messages[-1].type == "ai":
+            #     final_response = messages[-1].content
+        # Handle final response from the last node
+        # if "final_response" in output:
+        #     final_response = output["final_response"]
 
         return final_response or "Something went wrong. Please try again."

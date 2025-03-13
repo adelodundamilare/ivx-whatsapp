@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import Dict, List
+from typing import Any, Dict, List
 import os
 from app.core.config import settings
 from app.models.models import Language
@@ -103,15 +103,21 @@ If switching from English to Spanish or vice versa, maintain consistent tone and
     except Exception as e:
         print(f"{str(e)}")
 
-async def intent_agent(message: str, history: List[Dict]) -> Dict:
+async def intent_agent(message: str, history: Any) -> Dict:
     template = f"""
 Identify the primary intent of the user's message.
+
+Use the conversation history to maintain context and determine the intent.
+
 Possible intents:
-- schedule_appointment: User wants to book a new appointment
+- create_appointment: User wants to book a new appointment
 - cancel_appointment: User wants to cancel an existing appointment
-- reschedule_appointment: User wants to change an existing appointment
+- edit_appointment: User wants to change or update an existing appointment
 - greet: User is greeting the system
 - other: None of the above
+
+Conversation history:
+{history}
 
 User message: {message}
 

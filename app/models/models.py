@@ -163,11 +163,7 @@ class ClinicState(TypedDict):
     user_input: str
     full_name: str
     clinic_name: str
-    gender: str
-    procedure_type: str
-    date: str
-    time: str
-    appointment: dict
+    appointment: Dict
     doctor_index: int
     needs_clarification: bool
     intent: str

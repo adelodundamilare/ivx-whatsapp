@@ -16,14 +16,16 @@ class ProcedureCollector:
         self.intent = intent
         self.full_name = self.state.get("full_name", "")
         self.clinic_name = self.state.get("clinic_name", "")
-        self.procedure_type = self.state.get("procedure_type", "")
-        self.date = self.state.get("date", "")
-        self.time = self.state.get("time", "")
-        self.patient_name = self.state.get("patient_name", "")
-        self.location = self.state.get("location", "")
-        self.patient_gender = self.state.get("patient_gender", "")
-        self.additional_note = self.state.get("additional_note", "")
-        self.confirmation_status = self.state.get("confirmation_status", "")
+
+        self.appointment = self.state.get("appointment", {})
+        self.procedure_type = self.appointment.get("procedure_type", "")
+        self.date = self.appointment.get("date", "")
+        self.time = self.appointment.get("time", "")
+        self.patient_name = self.appointment.get("patient_name", "")
+        self.location = self.appointment.get("location", "")
+        self.patient_gender = self.appointment.get("patient_gender", "")
+        self.additional_note = self.appointment.get("additional_note", "")
+        self.confirmation_status = self.appointment.get("confirmation_status")
         self.clarification_attempts = self.state.get("clarification_attempts", 0)
 
         self.collector = DataCollector(self.clinic_phone, self.user_input)
@@ -32,7 +34,8 @@ class ProcedureCollector:
 
     async def process(self):
         if self.confirmation_status == "PENDING":
-            return await self._handle_confirmation_response()
+            result = await self._handle_confirmation_response()
+            return result
 
         if self._has_missing_required_fields():
             await self._collect_missing_fields()
@@ -45,17 +48,11 @@ class ProcedureCollector:
 
         if self.confirmation_status != "CONFIRMED":
             await self._request_confirmation()
-            return self.collector.update_state({
-                "needs_clarification": True,
-                "confirmation_status": "PENDING"
-            })
+            return self._update_state_data({"confirmation_status":"PENDING"},
+                                           needs_clarification=True)
 
         await self._handle_confirmed_procedure()
-        return self.collector.update_state({
-            "needs_clarification": False,
-            "confirmation_status": "COMPLETED",
-            "intent": None
-        })
+        return self._update_state_data(needs_clarification=False, intent=None, appointment={})
 
     def _has_missing_required_fields(self) -> bool:
         current_data = self._get_current_data()
@@ -79,33 +76,34 @@ class ProcedureCollector:
 
     async def _collect_missing_fields(self) -> None:
         missing_fields = self._get_missing_fields()
-        print('collecting missing fields', missing_fields)
         if not missing_fields:
             return
 
-        all_fields = self.required_fields + self.optional_fields
-        extracted_data = await self.collector.extract_entities(all_fields)
+        await self._extract_entities()
 
-        update_data = {}
-        for field, value in extracted_data.items():
-            update_data[field] = value
-            if field == "procedure_type":
-                self.procedure_type = value
-            elif field == "patient_name":
-                self.patient_name = value
-            elif field == "patient_gender":
-                self.patient_gender = value
-            elif field == "date":
-                self.date = value
-            elif field == "time":
-                self.time = value
-            elif field == "location":
-                self.location = value
-            elif field == "additional_note":
-                self.additional_note = value
+        # all_fields = self.required_fields + self.optional_fields
+        # extracted_data = await self.collector.extract_entities(all_fields)
 
-        if update_data:
-            self.collector.update_state(update_data)
+        # update_data = dict(self.appointment)
+        # for field, value in extracted_data.items():
+        #     update_data[field] = value
+        #     if field == "procedure_type":
+        #         self.procedure_type = value
+        #     elif field == "patient_name":
+        #         self.patient_name = value
+        #     elif field == "patient_gender":
+        #         self.patient_gender = value
+        #     elif field == "date":
+        #         self.date = value
+        #     elif field == "time":
+        #         self.time = value
+        #     elif field == "location":
+        #         self.location = value
+        #     elif field == "additional_note":
+        #         self.additional_note = value
+
+        # if extracted_data:
+        #     self.collector.update_state({"appointment": update_data})
 
     async def _create_clarification_state(self) -> Dict[str, Any]:
         """Request missing information from user"""
@@ -115,9 +113,13 @@ class ProcedureCollector:
 
         print(missing_fields, 'missing_fieldssssssssssssssssssssssssss')
 
-        prompt = f"Respond warmly to this user message - {self.user_input} - as AIA, an assistant helping clinics connect with doctors. Then, ask for their {missing_fields} in a friendly, conversational way."
+        if len(missing_fields) == 1:
+            prompt = f"Could you kindly provide the {missing_fields[0]} for the appointment? 😊"
+        else:
+            prompt = f"Could you kindly provide the following information for the appointment? 😊: {', '.join(missing_fields)}"
+
         response = await invoke_ai(prompt, self.clinic_phone)
-        await send_response(self.clinic_phone, response,  message=self.message)
+        await self._send_response(self.clinic_phone, response)
 
     async def _request_clarification(self) -> None:
         missing_fields = self._get_missing_fields()
@@ -131,7 +133,7 @@ class ProcedureCollector:
             await self._request_confirmation()
             return
 
-        response = await self._invoke_ai(prompt, self.clinic_phone)
+        response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
 
     async def _request_confirmation(self) -> None:
@@ -147,82 +149,57 @@ class ProcedureCollector:
 
         prompt = f"Show the user a summary of the procedure details they provided: {procedure_summary}. Ask them to confirm if everything is correct, or specify what they'd like to change. Be conversational and friendly."
 
-        response = await self._invoke_ai(prompt, self.clinic_phone)
+        response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
 
-    async def _handle_confirmation_response(self) -> Dict[str, Any]:
-        confirmation_check = await self.collector.extract_entity("confirmation")
-        change_request = await self.collector.extract_entity("change_request")
+    async def _handle_confirmation_response(self):
+        prompt =f"""
+Based on the following user response, determine the intent:
 
-        if confirmation_check and confirmation_check.lower() in ["yes", "confirm", "correct", "good", "right"]:
+Possible intents:
+- CONFIRM: If the user confirms the appointment change.
+- CHANGE_REQUEST: If the user requests a change or provides new details (e.g., update date or name)
+- OTHER: If the response is unclear or unrelated.
+
+User input: "{self.user_input}"
+
+Respond with only the intent label.
+"""
+
+        intent = await invoke_ai(prompt, self.clinic_phone)
+        print(intent, '_handle_confirmation_response confirm intent')
+
+        if intent == 'CONFIRM':
             self.confirmation_status = "CONFIRMED"
-            self.collector.update_state({"confirmation_status": "CONFIRMED"})
+            self._update_state_data({"confirmation_status":"CONFIRMED"})
             return await self.process()
 
-        elif change_request or (self.user_input and not confirmation_check):
-            # User wants to change something, or didn't explicitly confirm
-            # Extract all fields again to see if they provided updated values
-            all_fields = self.required_fields + self.optional_fields
-            updated_data = await self.collector.extract_entities(all_fields)
+        if intent == 'CHANGE_REQUEST':
+            update_data = await self._extract_entities()
+            await self._request_confirmation()
+            return self._update_state_data({**update_data, "confirmation_status":"PENDING"}, needs_clarification=True, intent=self.intent)
 
-            if updated_data:
-                update_data = {}
-                for field, value in updated_data.items():
-                    update_data[field] = value
-                    if field == "procedure_type":
-                        self.procedure_type = value
-                    elif field == "date":
-                        self.date = value
-                    elif field == "time":
-                        self.time = value
-                    elif field == "additional_note":
-                        self.additional_note = value
+        prompt = f"""
+Here is the appointment summary:
 
-                if update_data:
-                    self.collector.update_state(update_data)
+- 📅 Date: {self.date}
+- 🕒 Time: {self.time}
+- 🏥 Procedure Type: {self.procedure_type}
+- 👤 Patient Name: {self.patient_name}
+- 📍 Appointment Location: {self.location}
+- ⚧️ Patient Gender: {self.patient_gender}
+- 📝 Additional Note: {self.additional_note}
 
-                await self._request_confirmation()
-                update_data = {
-                    **update_data,
-                    "needs_clarification": True,
-                    "intent": self.intent,
-                    "confirmation_status": "PENDING",
-                    # "procedure_type": self.procedure_type,
-                    # "date": self.date,
-                    # "time": self.time,
-                    # "additional_note": self.additional_note
-                }
-                self.collector.update_state(update_data)
-                return update_data
-            else:
-                prompt = "Ask the user which specific detail they would like to change (procedure type, date, time, or additional note)."
-                response = await self._invoke_ai(prompt, self.clinic_phone)
-                await self._send_response(self.clinic_phone, response)
-                update_data = {
-                    "needs_clarification": True,
-                    "confirmation_status": "PENDING",
-                    # "procedure_type": self.procedure_type,
-                    # "intent": self.intent,
-                    # "date": self.date,
-                    # "time": self.time,
-                    # "additional_note": self.additional_note
-                }
-                self.collector.update_state(update_data)
-                return update_data
+Could you kindly confirm if everything looks good or let me know what you'd like to update? 😊
 
-        prompt = "Politely ask the user to confirm if the details are correct or specify what they would like to change."
-        response = await self._invoke_ai(prompt, self.clinic_phone)
-        await self._send_response(self.clinic_phone, response)
-        update_data = {
-            "needs_clarification": True,
-            "confirmation_status": "PENDING",
-        }
-        self.collector.update_state(update_data)
-        return update_data
+"""
+        await self._send_response(self.clinic_phone, prompt)
+        return self._update_state_data({"confirmation_status":"PENDING"}, needs_clarification=True)
+
 
     async def _handle_confirmed_procedure(self) -> None:
         procedure_data = {
-            "procedure_type": self.procedure_type,
+            "service_type": self.procedure_type,
             "date": self.date,
             "time": self.time,
             "additional_note": self.additional_note,
@@ -231,22 +208,57 @@ class ProcedureCollector:
             "clinic_name": self.clinic_name
         }
 
-        result = await bubble_client.create_appointment(procedure_data)
-        print(result, 'bubble result')
+        # result = await bubble_client.create_appointment(procedure_data)
+        # print(result, 'bubble result')
 
         # if it's successful, update user
 
         # Thank the user and inform them about next steps
         prompt = f"Thank the user for confirming the procedure details. Let them know you'll now look for available doctors for their {self.procedure_type} on {self.date} at {self.time}."
-        response = await self._invoke_ai(prompt, self.clinic_phone)
+        response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
-
-    async def _invoke_ai(self, prompt: str, phone: str) -> str:
-        """Invoke AI to generate response"""
-        # This would be implemented by the parent class
-        return await invoke_ai(prompt, phone)
 
     async def _send_response(self, phone: str, message: str) -> None:
         """Send response to user"""
         # This would be implemented by the parent class
         await send_response(phone, message, message=self.message)
+
+    def _update_state_data(self, appointment_updates=None, **state_updates):
+        current_appointment_data = self.appointment
+
+        state_update = {}
+        for key, value in state_updates.items():
+            state_update[key] = value
+
+        if appointment_updates:
+            for field, value in appointment_updates.items():
+                if hasattr(self, field):
+                    setattr(self, field, value)
+
+        updated_appointment = {**current_appointment_data, **appointment_updates}
+        state_update["appointment"] = updated_appointment
+
+        return self.collector.update_state(state_update)
+
+    async def _extract_entities(self):
+        all_fields = self.required_fields + self.optional_fields
+        updated_data = await self.collector.extract_entities(all_fields)
+        print(updated_data, 'extracted data to be updated')
+
+        if updated_data:
+            update_data = dict(self.appointment)
+            for field, value in updated_data.items():
+                update_data[field] = value
+                if field == "procedure_type":
+                    self.procedure_type = value
+                elif field == "date":
+                    self.date = value
+                elif field == "time":
+                    self.time = value
+                elif field == "additional_note":
+                    self.additional_note = value
+
+            if update_data:
+                self.collector.update_state(update_data)
+
+        return update_data

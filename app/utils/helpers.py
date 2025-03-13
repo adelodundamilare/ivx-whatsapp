@@ -21,13 +21,19 @@ response_prompt = ChatPromptTemplate.from_messages(
 response_chain = response_prompt | llm
 
 response_history: Dict[str, ChatMessageHistory] = {}
+
 def get_message_history(clinic_phone: str) -> ChatMessageHistory:
     if clinic_phone not in response_history:
         response_history[clinic_phone] = ChatMessageHistory()
         print(f"Initialized new history for {clinic_phone}")
-    res =  response_history[clinic_phone]
-    # print(res, 'get_message_history oooooooooooooooooooooooooooooooooooooooooooo')
-    return res
+
+    full_history = response_history[clinic_phone]
+    limited_history = ChatMessageHistory()
+    messages = full_history.messages[-5:] if len(full_history.messages) > 5 else full_history.messages
+    for message in messages:
+        limited_history.add_message(message)
+
+    return limited_history
 
 def get_response_runnable(clinic_phone: str) -> RunnableWithMessageHistory:
     return RunnableWithMessageHistory(
@@ -39,8 +45,25 @@ def get_response_runnable(clinic_phone: str) -> RunnableWithMessageHistory:
 
 async def invoke_ai(prompt:str, clinic_phone:str):
     runnable = get_response_runnable(clinic_phone)
+    history = get_message_history(clinic_phone)
+    history.add_user_message(prompt)
+
+    input_data = {
+        "system_message":  (
+    "You are a warm and professional medical assistant designed to help clinics efficiently schedule, reschedule, edit, and manage doctor appointments. "
+    "Your role is to act as a bridge between clinics and doctors, streamlining the booking process while ensuring accuracy and smooth coordination. "
+    "Clinics are the primary users of this system, and you are here to assist them in finding available doctors, managing schedules, and handling patient requests. "
+    "Use the conversation history to maintain context and provide accurate, relevant responses. "
+    "If any information is unclear or missing, ask friendly follow-up questions to confirm appointment details before proceeding. "
+    "The typical flow includes: understanding the clinic's request, checking doctor availability, confirming details, and finalizing the booking. "
+    "Always maintain a professional and helpful tone."
+),
+        "input": prompt,
+        "history": history.messages
+    }
+
     response = await runnable.ainvoke(
-        {"input": prompt},
+        input_data,
         config={"configurable": {"session_id": clinic_phone}}
     )
     return response.content

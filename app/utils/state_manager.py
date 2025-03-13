@@ -83,11 +83,12 @@ class StateManager:
         return self.states.get(clinic_phone, {
             "full_name": "",
             "clinic_name": "",
-            "patient_gender": "",
-            "procedure_type": "",
-            "date": "",
-            "time": "",
-            "appointment": {},
+            "appointment": {
+                "patient_gender": "",
+                "procedure_type": "",
+                "date": "",
+                "time": "",
+            },
             "doctor_index": 0,
             "history": [],
             "needs_clarification": False,
@@ -100,6 +101,7 @@ class StateManager:
         if clinic_phone not in self.states:
             self.states[clinic_phone] = self.get_state(clinic_phone)
 
+        print(updates, "save state data ............")
         self.states[clinic_phone].update(updates)
         self._save_states()
 

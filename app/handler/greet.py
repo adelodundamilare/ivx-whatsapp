@@ -124,3 +124,13 @@ class GreetingHandler:
         prompt = f"Respond warmly to the user's message: '{self.user_input}'. If appropriate, greet them using their name ({self.full_name}) and acknowledge the clinic they represent ({self.clinic_name}). Then, guide the conversation by asking how you can assist them today. Offer options such as booking, canceling, or checking appointments."
         response = await invoke_ai(prompt, self.clinic_phone)
         await send_response(clinic_phone=self.clinic_phone, response_message=response, message=self.message)
+
+    async def general_response(self) -> None:
+        prompt = (f"You are a warm and professional medical assistant that helps clinics schedule, reschedule, edit and manage doctor appointments. "
+         f"Keep responses clear, concise, and friendly while ensuring accuracy in appointment details. "
+         f"Use the conversation history to maintain context and provide relevant responses. "
+         f"If needed, ask relevant follow-up questions to confirm appointment details before proceeding. "
+         f"ensure users confirm inputs before proceeding.")
+        response = await invoke_ai(prompt, self.clinic_phone)
+        await send_response(clinic_phone=self.clinic_phone, response_message=response, message=self.message)
+        return self.collector.update_state({"needs_clarification": True})
