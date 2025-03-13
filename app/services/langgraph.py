@@ -1052,11 +1052,11 @@ class ClinicAssistant:
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
 
-        if not state.get("clinic_name", "") or not state.get("full_name", ""):
-            return "greet"
+        # if not state.get("clinic_name", "") or not state.get("full_name", ""):
+        #     return "greet"
 
-        if state.get("needs_clarification") and state.get("intent") != "other":
-            return state.get("intent")
+        # if state.get("needs_clarification") and state.get("intent") != "other":
+        #     return state.get("intent")
 
         prompt = f"""
 Identify the primary intent of the user's message.
