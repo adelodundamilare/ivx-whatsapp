@@ -175,7 +175,7 @@ Respond with only the intent label.
             return await self.process()
 
         if intent == 'CHANGE_REQUEST':
-            update_data = await self._extract_entities()
+            update_data = await self._extract_entities() or {}
             await self._request_confirmation()
             return self._update_state_data({**update_data, "confirmation_status":"PENDING"}, needs_clarification=True, intent=self.intent)
 
@@ -259,4 +259,6 @@ Could you kindly confirm if everything looks good or let me know what you'd like
             if update_data:
                 self.collector.update_state(update_data)
 
-        return update_data
+            return update_data
+        else:
+            return dict(self.appointment)
