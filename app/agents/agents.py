@@ -241,7 +241,7 @@ async def generate_generic_response(message: str, conversation_history: list) ->
         print(f"An error occurred: {e}")
         return "Sorry, there was an error processing your request."
 
-async def generate_ai_response(prompt: str, history: list = None, system_msg: str = "You're AIA, a professional and friendly AI assistant helping clinics connect with doctors. Maintain a conversational tone and guide the user proactively.") -> str:
+async def generate_ai_response(prompt: str, history: list = None, system_msg: str = "You're IVX AI Assistant, a professional and friendly AI assistant helping clinics connect with doctors. Maintain a conversational tone and guide the user proactively.") -> str:
     messages = [{"role": "system", "content": system_msg}]
     if history:
         messages.extend(history)

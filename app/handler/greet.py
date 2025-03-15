@@ -115,7 +115,7 @@ class GreetingHandler:
         missing_field = missing_fields[0]  # Ask for one field at a time
         field_display_name = missing_field.replace('_', ' ')
 
-        prompt = f"Respond warmly to this user message - {self.user_input} - as AIA, an assistant helping clinics connect with doctors. If appropriate, acknowledge the user's message first. Then, ask for their {field_display_name} in a friendly, conversational way."
+        prompt = f"Respond warmly to this user message - {self.user_input} - as IVX AI Assistant, an assistant that helps clinics connect with doctors. If appropriate, acknowledge the user's message first. Then, ask for their {field_display_name} in a friendly, conversational way."
         response = await invoke_ai(prompt, self.clinic_phone)
         await send_response(self.clinic_phone, response,  message=self.message)
 

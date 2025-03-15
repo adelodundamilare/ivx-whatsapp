@@ -1009,6 +1009,7 @@ state_manager = StateManager()
 
 valid_intents = {
     "create_appointment": "create_appointment",
+    "edit_appointment": "edit_appointment",
     "cancel_appointment": "cancel_appointment",
     "check_appointment_status": "check_appointment_status",
     "greet": "greet",
@@ -1043,6 +1044,11 @@ class ClinicAssistant:
     async def create_appointment(self, _: ClinicState) -> ClinicState:
         print('calling create_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         handler = ProcedureCollector(intent="create_appointment", message=self.message)
+        return await handler.process()
+
+    async def edit_appointment(self, _: ClinicState) -> ClinicState:
+        print('calling edit_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = ProcedureCollector(intent="edit_appointment", message=self.message)
         return await handler.process()
 
     async def classify_intent(self, _: ClinicState) -> ClinicState:
@@ -1247,7 +1253,7 @@ Respond with only the intent label.
     def _route_after_classify(self, _: ClinicState) -> str:
         print('calling _route_after_classify kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
-        print(state, '_route_after_classify state yyyyyyyyyyyyyyyyyyyy')
+        # print(state, '_route_after_classify state yyyyyyyyyyyyyyyyyyyy')
 
         if not state.get("clinic_name", "") or not state.get("full_name", ""):
             return "greet"
@@ -1313,6 +1319,7 @@ Respond with only the intent label.
         workflow.add_node("greet", self.greet)
         workflow.add_node("classify_intent", self.classify_intent)
         workflow.add_node("create_appointment", self.create_appointment)
+        workflow.add_node("edit_appointment", self.edit_appointment)
         workflow.add_node("prompt_doctors", self.prompt_doctors)
         workflow.add_node("confirm_appointment", self.confirm_appointment)
         workflow.add_node("cancel_appointment", self.cancel_appointment)

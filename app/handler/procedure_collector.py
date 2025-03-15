@@ -1,3 +1,5 @@
+import random
+import string
 from typing import Any, Dict, List
 from app.models.models import Message
 from app.services.bubble_client import bubble_client
@@ -177,6 +179,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
 
 
     async def _handle_confirmed_procedure(self) -> None:
+        booking_code = self._generate_booking_code()
         procedure_data = {
             "service_type": self.state.get("procedure_type"),
             "date": self.state.get("date"),
@@ -187,6 +190,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
             "location": self.state.get("location"),
             "phone_number": self.state.get("clinic_phone"),
             "patient_age_range": self.state.get("patient_age_range"),
+            "code": booking_code
         }
 
         try:
@@ -196,7 +200,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
             print(f"Error in _handle_confirmed_procedure: {str(e)}")
             return await self._send_response(self.clinic_phone, "An error occurred while scheduling the procedure. Please try again later.")
 
-        prompt = f"Thank the user for confirming the procedure details. Let them know you'll now look for available doctors for their {self.state.get('procedure_type')} on {self.state.get('date')} at {self.state.get('time')} and ask if they have any other thing they'll need help with"
+        prompt = f"Thank the user for confirming the procedure details. Let them know you'll now look for available doctors for their {self.state.get('procedure_type')} on {self.state.get('date')} at {self.state.get('time')} and there booking code - which they need to keep safe for future use -  is {booking_code} then ask if they have any other thing they'll need help with"
         response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
         self._reset_state()
@@ -257,3 +261,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
             return update_data
         else:
             return dict(self.state)
+
+    def _generate_booking_code(self):
+        random_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        return 'IVX' + random_code
