@@ -85,7 +85,7 @@ class StateManager:
             "clinic_name": "",
             "appointment": {
                 "patient_gender": "",
-                "procedure_type": "",
+                "service_type": "",
                 "date": "",
                 "time": "",
             },

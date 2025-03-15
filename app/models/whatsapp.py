@@ -7,7 +7,7 @@ class ConversationState(str, Enum):
     WELCOME = "welcome"
     SERVICE_MENU = "service_menu"
     BOOK_APPOINTMENT = "book_appointment"
-    APPOINTMENT_PROCEDURE_TYPE="set_procedure_type"
+    APPOINTMENT_PROCEDURE_TYPE="set_service_type"
     APPOINTMENT_DATE="appointment_data"
 
 
@@ -60,7 +60,7 @@ class DoctorProfile(BaseModel):
     rating: float
 
 class ProcedureRequest(BaseModel):
-    procedure_type: ProcedureType
+    service_type: ProcedureType
     patient_age: Optional[int]
     medical_conditions: Optional[List[str]]
     preferred_date: datetime

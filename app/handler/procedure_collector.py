@@ -20,7 +20,7 @@ class ProcedureCollector:
         self.clinic_name = self.state.get("clinic_name", "")
 
         self.collector = DataCollector(self.clinic_phone, self.user_input)
-        self.required_fields = ["procedure_type", "patient_gender", "location", "patient_name", "patient_age_range", "date", "time"]
+        self.required_fields = ["service_type", "patient_gender", "location", "patient_name", "patient_age_range", "date", "time"]
         self.optional_fields = ["additional_note"]
 
     @property
@@ -58,7 +58,7 @@ class ProcedureCollector:
         state = self.state
 
         current_data = {
-            "procedure_type": state.get("procedure_type"),
+            "service_type": state.get("service_type"),
             "patient_gender": state.get("patient_gender"),
             "date": state.get("date"),
             "time": state.get("time"),
@@ -86,8 +86,6 @@ class ProcedureCollector:
         missing_fields = self._get_missing_fields()
         if not missing_fields:
             return
-
-        print(missing_fields, 'missing_fieldssssssssssssssssssssssssss')
 
         if len(missing_fields) == 1:
             prompt = f"Respond to the user's message: {self.user_input} then ask to kindly provide the {missing_fields[0]} for the appointment? 😊"
@@ -118,7 +116,7 @@ Here is the appointment summary:
 
 - 📅 Date: {self.state.get("date")}
 - 🕒 Time: {self.state.get("time")}
-- 🏥 Procedure Type: {self.state.get("procedure_type")}
+- 🏥 Procedure Type: {self.state.get("service_type")}
 - 👤 Patient Name: {self.state.get("patient_name")}
 - 📍 Appointment Location: {self.state.get("location")}
 - 📝 Patient Age: {self.state.get("patient_age_range")}
@@ -165,7 +163,7 @@ Here is the appointment summary:
 
 - 📅 Date: {self.state.get("date")}
 - 🕒 Time: {self.state.get("time")}
-- 🏥 Procedure Type: {self.state.get("procedure_type")}
+- 🏥 Procedure Type: {self.state.get("service_type")}
 - 👤 Patient Name: {self.state.get("patient_name")}
 - 📝 Patient Age: {self.state.get("patient_age_range")}
 - 📍 Appointment Location: {self.state.get("location")}
@@ -181,7 +179,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
     async def _handle_confirmed_procedure(self) -> None:
         booking_code = self._generate_booking_code()
         procedure_data = {
-            "service_type": self.state.get("procedure_type"),
+            "service_type": self.state.get("service_type"),
             "date": self.state.get("date"),
             "time": self.state.get("time"),
             "additional_note": self.state.get("additional_note"),
@@ -200,7 +198,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
             print(f"Error in _handle_confirmed_procedure: {str(e)}")
             return await self._send_response(self.clinic_phone, "An error occurred while scheduling the procedure. Please try again later.")
 
-        prompt = f"Thank the user for confirming the procedure details. Let them know you'll now look for available doctors for their {self.state.get('procedure_type')} on {self.state.get('date')} at {self.state.get('time')} and there booking code - which they need to keep safe for future use -  is {booking_code} then ask if they have any other thing they'll need help with"
+        prompt = f"Thank the user for confirming the procedure details. Let them know you'll now look for available doctors for their {self.state.get('service_type')} on {self.state.get('date')} at {self.state.get('time')} and there booking code - which they need to keep safe for future use -  is {booking_code} then ask if they have any other thing they'll need help with"
         response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
         self._reset_state()
@@ -209,7 +207,7 @@ Could you kindly confirm if everything looks good or let me know what you'd like
         """Reset the state to initial values"""
         print('calling _reset_state')
         reset_state = {
-            "procedure_type": None,
+            "service_type": None,
             "date": None,
             "time": None,
             "additional_note": None,

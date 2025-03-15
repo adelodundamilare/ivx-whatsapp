@@ -80,6 +80,17 @@ class BubbleApiClient:
             logger.error(f"Error in create_appointment: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Unexpected error creating appointment: {str(e)}")
 
+    async def update_appointment(self, id: str, data: Dict) -> bool:
+        try:
+            print('sending data to bubble', data)
+            result = await self._make_request("PATCH", f"appointments/{id}", data=data)
+            return result
+        except HTTPException as e:
+            raise HTTPException(status_code=500, detail=f"Failed to create appointment: {e.detail}")
+        except Exception as e:
+            logger.error(f"Error in create_appointment: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Unexpected error creating appointment: {str(e)}")
+
     async def create_clinic(self, data: Dict) -> bool:
         """Create a new clinic"""
         return await self._make_request("post", "clinics", data=data)
@@ -100,6 +111,43 @@ class BubbleApiClient:
             raise HTTPException(status_code=404, detail="Clinic not found")
 
         return results[0]
+
+    async def find_appointment_by_code(self, booking_code: str) -> Dict:
+        constraints = [{
+            'key': 'code',
+            'constraint_type': 'equals',
+            'value': booking_code
+        }]
+
+        params = {'constraints': json.dumps(constraints)}
+        response_data = await self._make_request("get", "appointments", params=params)
+
+        results = response_data.get("response", {}).get("results", [])
+        if not results:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+
+        return results[0]
+
+    async def find_latest_appointments(self, clinic_phone: str) -> Dict:
+        constraints = [{
+            'key': 'phone_number',
+            'constraint_type': 'equals',
+            'value': clinic_phone
+        }]
+        params = {
+            'constraints': json.dumps(constraints),
+            'limit': 10,
+            'order_by': 'created_at',
+            'order_direction': 'desc'
+        }
+
+        response_data = await self._make_request("get", "appointments", params=params)
+
+        results = response_data.get("response", {}).get("results", [])
+        if not results:
+            raise HTTPException(status_code=404, detail="Appointment not found")
+
+        return results
 
 
 bubble_client = BubbleApiClient()

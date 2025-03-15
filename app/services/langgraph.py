@@ -5,6 +5,7 @@ import os
 import re
 from typing import Dict
 from app.agents.agents import intent_agent
+from app.handler.edit_handler import EditHandler
 from app.handler.greet import GreetingHandler
 from app.handler.procedure_collector import ProcedureCollector
 from app.models.models import ClinicState, Message
@@ -1048,7 +1049,7 @@ class ClinicAssistant:
 
     async def edit_appointment(self, _: ClinicState) -> ClinicState:
         print('calling edit_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        handler = ProcedureCollector(intent="edit_appointment", message=self.message)
+        handler = EditHandler(intent="edit_appointment", message=self.message)
         return await handler.process()
 
     async def classify_intent(self, _: ClinicState) -> ClinicState:
@@ -1276,6 +1277,13 @@ Respond with only the intent label.
             return END
         return "pause"
 
+    def _route_after_edit_appointment(self, _: ClinicState) -> str:
+        print('calling _route_after_edit_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        state = self.state
+        if state.get("needs_clarification"):
+            return END
+        return "pause"
+
     def _route_after_prompt_doctors(self, state: ClinicState) -> str:
         print('calling _route_after_prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         if state.get("needs_clarification"):
@@ -1333,6 +1341,7 @@ Respond with only the intent label.
         workflow.add_conditional_edges("greet", self._route_after_greet)
         workflow.add_conditional_edges("classify_intent", self._route_after_classify)
         workflow.add_conditional_edges("create_appointment", self._route_after_create_appointment)
+        workflow.add_conditional_edges("edit_appointment", self._route_after_edit_appointment)
         workflow.add_conditional_edges("prompt_doctors", self._route_after_prompt_doctors)
         workflow.add_conditional_edges("confirm_appointment", self._route_after_confirm_appointment)
         workflow.add_conditional_edges("cancel_appointment", self._route_after_cancel_appointment)
@@ -1355,5 +1364,6 @@ Respond with only the intent label.
             config={"configurable": {"session_id": clinic_phone}}
         ):
             logger.info(f"Node output: {output}")
+            # state_manager.clear_state(clinic_phone)
 
         return final_response or "Something went wrong. Please try again."

@@ -83,7 +83,7 @@
 #         "preferred_date": get_memory(user_id, "date"),
 #         "preferred_time": get_memory(user_id, "time"),
 #         "location": get_memory(user_id, "location"),
-#         "procedure_type": get_memory(user_id, "service"),
+#         "service_type": get_memory(user_id, "service"),
 #     }
 
 #     if None in appointment.values():

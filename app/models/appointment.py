@@ -12,7 +12,7 @@ class AppointmentStatus(str, Enum):
     DOCTOR_ASSIGNED = "doctor_assigned"
 
 class Appointment(BaseModel):
-    procedure_type: Optional[str] = None
+    service_type: Optional[str] = None
     preferred_date: Optional[datetime] = None
     patient_name: Optional[str] = None
     patient_phone: Optional[str] = None
@@ -36,7 +36,7 @@ class AppointmentEdit(BaseModel):
     appointment_id: str
     new_date: Optional[datetime] = None
     new_doctor_id: Optional[str] = None
-    new_procedure_type: Optional[str] = None
+    new_service_type: Optional[str] = None
     reason: Optional[str] = None
 
     # @field_validator('preferred_date')

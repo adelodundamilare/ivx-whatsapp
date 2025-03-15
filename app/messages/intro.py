@@ -35,8 +35,8 @@ async def handle_appointment_scheduling(message: str):
     handler = AppointmentHandler(state_manager)
     return await handler.handle_appointment(message)
 
-    # if is_current_step("procedure_type"):
-    #     res = handle_procedure_type_input(message, data)
+    # if is_current_step("service_type"):
+    #     res = handle_service_type_input(message, data)
     #     if res:
     #         return res
 
@@ -61,26 +61,26 @@ async def handle_appointment_scheduling(message: str):
     # if is_current_step("summary"):
     #     if message == '1':
     #         # send request to backend...
-    #         return f"""Great! I'll help you schedule an appointment for a *{data['procedure_type'].replace("_", " ").title()}* procedure on *{data['preferred_date']}* at *{data['clinic_name']}*. Would you like me to check doctor availability now?"""
+    #         return f"""Great! I'll help you schedule an appointment for a *{data['service_type'].replace("_", " ").title()}* procedure on *{data['preferred_date']}* at *{data['clinic_name']}*. Would you like me to check doctor availability now?"""
 
     #     elif message == '2':
-    #         del data["procedure_type"]
+    #         del data["service_type"]
     #         del data["preferred_date"]
     #         del data["patient_name"]
     #         del data["clinic_name"]
-    #         set_current_step("procedure_type")
+    #         set_current_step("service_type")
     #         state_manager.set_conversation_state(ConversationState.BOOK_APPOINTMENT)
     #         return AppointmentPrompts.get_procedure_prompt()
     #     else:
     #         return "Please reply with 1 to confirm or 2 to make changes."
 
-    # required_fields = ["procedure_type", "preferred_date", "patient_name", "clinic_name", "summary"]
+    # required_fields = ["service_type", "preferred_date", "patient_name", "clinic_name", "summary"]
     # missing_fields = [field for field in required_fields if field not in data]
 
     # if missing_fields:
     #     next_field = missing_fields[0]
-    #     if next_field == "procedure_type":
-    #         set_current_step("procedure_type")
+    #     if next_field == "service_type":
+    #         set_current_step("service_type")
     #         return AppointmentPrompts.get_procedure_prompt()
     #     if next_field == "preferred_date":
     #         set_current_step("preferred_date")
@@ -202,7 +202,7 @@ def handle_doctor_info(entities: Dict):
             "Would you like to know about their specialties, experience, or availability?")
 
 def handle_procedure_info(entities: Dict):
-    proc_type = entities.get("procedure_type")
+    proc_type = entities.get("service_type")
     if proc_type:
         return f"Let me provide you with information about anesthesia for {proc_type}."
     return ("I can provide information about anesthesia for various dental procedures. "
@@ -225,17 +225,17 @@ How can I help you today?
 
 
 
-# def handle_procedure_type_input(message: str, data: dict) -> str:
-#     if not DataValidator.validate_procedure_type(message):
-#         set_current_step("procedure_type")
+# def handle_service_type_input(message: str, data: dict) -> str:
+#     if not DataValidator.validate_service_type(message):
+#         set_current_step("service_type")
 #         return "Please select a valid procedure type (1-5)."
 
 #     procedure = ProcedureType.from_input(message)
 
 #     if procedure:
-#         data["procedure_type"] = procedure.value
+#         data["service_type"] = procedure.value
 #         # Or if you want to store the enum itself:
-#         # data["procedure_type"] = procedure
+#         # data["service_type"] = procedure
 #     else:
-#         set_current_step("procedure_type")
+#         set_current_step("service_type")
 #         return "Invalid procedure type selected."

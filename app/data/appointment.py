@@ -15,7 +15,7 @@ PROCEDURE_TYPE_OPTIONS: Dict[str, str] = {
 }
 
 class AppointmentField(Enum):
-    PROCEDURE_TYPE = "procedure_type"
+    PROCEDURE_TYPE = "service_type"
     PREFERRED_DATE = "preferred_date"
     PATIENT_NAME = "patient_name"
     CLINIC_NAME = "clinic_name"
@@ -37,13 +37,13 @@ class AppointmentPrompts:
     @staticmethod
     def get_summary(data: Dict[str, str]) -> str:
         clinic_name = data.get('clinic_name', 'Not specified')
-        procedure_type = data.get('procedure_type', 'Not specified')
+        service_type = data.get('service_type', 'Not specified')
         preferred_date = data.get('preferred_date', 'Not specified')
         patient_name = data.get('patient_name', 'Not specified')
 
         summary_message = f"""Please confirm your appointment details:
 - Clinic: {clinic_name}
-- Procedure: {procedure_type}
+- Procedure: {service_type}
 - Date: {preferred_date}
 - Patient: {patient_name}
 
@@ -100,16 +100,16 @@ class AppointmentHandler:
         await bubble_client.create_appointment(data)
         return (
             f"Great! I'll help you schedule an appointment for a "
-            f"*{data['procedure_type']}* procedure on *{data['preferred_date']}* "
+            f"*{data['service_type']}* procedure on *{data['preferred_date']}* "
             f"at *{data['clinic_name']}*. Would you like me to check doctor availability now?"
         )
 
     def _reset_appointment(self, data) -> str:
-        del data["procedure_type"]
+        del data["service_type"]
         del data["preferred_date"]
         del data["patient_name"]
         del data["clinic_name"]
-        # set_current_step("procedure_type")
+        # set_current_step("service_type")
         # self.state_manager.reset_appointment_data()
         set_current_step(AppointmentField.PROCEDURE_TYPE.value)
         return AppointmentPrompts.get_procedure_prompt()

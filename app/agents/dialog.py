@@ -15,7 +15,7 @@ class DialogAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.required_fields = {
-            Intent.CREATE_APPOINTMENT: ["patient_name", "procedure_type", "preferred_date"]
+            Intent.CREATE_APPOINTMENT: ["patient_name", "service_type", "preferred_date"]
         }
         # self.validation_rules = {
         #     # AppointmentField.PROCEDURE_TYPE: self._validate_procedure,
@@ -83,7 +83,7 @@ class DialogAgent(BaseAgent):
 
         # field_prompts = {
         #     "patient_name": "- **Your Name** (Full name)",
-        #     "procedure_type": "- **Procedure Type** (e.g., General Consultation, Dental Cleaning, Blood Test)",
+        #     "service_type": "- **Procedure Type** (e.g., General Consultation, Dental Cleaning, Blood Test)",
         #     "preferred_date": "- **Preferred Date** (YYYY-MM-DD or 'Next Available')",
         #     "symptoms": "- **Symptoms** (Briefly describe or type 'None')",
         #     "insurance_info": "- **Insurance Info** (Provider name, plan type, or 'Self-Pay')",

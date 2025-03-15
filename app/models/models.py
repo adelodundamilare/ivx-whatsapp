@@ -65,7 +65,7 @@ class ConversationState(BaseModel):
 
 class AppointmentData(BaseModel):
     patient_name: str
-    procedure_type: str
+    service_type: str
     phone_number: str
     preferred_date: Optional[datetime]
     symptoms: Optional[str] = None
