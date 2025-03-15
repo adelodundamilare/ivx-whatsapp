@@ -1,3 +1,4 @@
+from datetime import datetime
 from app.models.models import Message
 from app.services.bubble_client import bubble_client
 from app.utils import helpers
@@ -69,12 +70,12 @@ class EditHandler:
         try:
             appointments = await bubble_client.find_latest_appointments(self.clinic_phone)
 
-            if not appointments or appointments.count() == 0:
+            if not appointments:
                 prompt = "User has requested to find their appointment, but no appointments were found in our system. Politely inform them that we couldn't locate any appointments with their phone number and suggest they verify their information or book a new appointment."
                 response = await invoke_ai(prompt, self.clinic_phone)
                 return await self._send_response(self.clinic_phone, response)
 
-            result = "Here are your latest appointments:\n\n"
+            result = "Your Upcoming Appointments:\n\nPlease copy the *Booking Code* of the appointment you'd like to edit and paste it in your response. 😊\n\n"
 
             for i, data in enumerate(appointments, 1):
                 result += f"Booking Code: {data.get('code')}\n"
@@ -87,6 +88,7 @@ class EditHandler:
 
             return await self._send_response(self.clinic_phone, result)
         except Exception as e:
+            print(f"Error fetching latest appointments {str(e)}")
             prompt = "User is trying to access their appointment details, but we encountered a technical issue while retrieving the information. Politely apologize for the inconvenience, explain that we're experiencing a temporary problem with our booking system, and ask them to try again in a few minutes or contact the clinic directly."
             response = await invoke_ai(prompt, self.clinic_phone)
             return await self._send_response(self.clinic_phone, response)
@@ -178,7 +180,19 @@ Could you please confirm if these details are correct or let me know what you'd 
 
     async def _save_data(self, appointment):
         try:
-            await bubble_client.update_appointment(id=appointment.get("_id"), data=appointment)
+            data = appointment.copy()
+            if '_id' in data:
+                del data['_id']
+            if 'Created By' in data:
+                del data['Created By']
+            if 'Modified Date' in data:
+                del data['Modified Date']
+            if 'Created Date' in data:
+                del data['Created Date']
+
+            # data['Modified Date'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+            await bubble_client.update_appointment(id=appointment.get("_id"), data=data)
             prompt = f"""
             Inform the user that their booking has been successfully updated. Ask if there's anything else they need help with.
             """

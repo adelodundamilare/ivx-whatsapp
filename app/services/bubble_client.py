@@ -27,7 +27,7 @@ class BubbleApiClient:
         self.headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
 
     async def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None,
-                           params: Optional[Dict] = None, expected_status_codes: tuple = (200, 201)) -> Any:
+                           params: Optional[Dict] = None, expected_status_codes: tuple = (200, 201, 204)) -> Any:
         """Make a request to the Bubble API with error handling"""
         url = f"{self.api_url}/{endpoint}"
 
@@ -49,7 +49,14 @@ class BubbleApiClient:
                         timeout=DEFAULT_TIMEOUT
                     )
                 else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
+                    json_data = json.dumps(data, cls=DateTimeEncoder) if data else None
+                    response = await client.request(
+                        url=url,
+                        method=method.lower(),
+                        headers=self.headers,
+                        content=json_data,
+                        timeout=DEFAULT_TIMEOUT
+                    )
 
                 # Handle response status
                 if response.status_code not in expected_status_codes:
@@ -82,8 +89,8 @@ class BubbleApiClient:
 
     async def update_appointment(self, id: str, data: Dict) -> bool:
         try:
-            print('sending data to bubble', data)
-            result = await self._make_request("PATCH", f"appointments/{id}", data=data)
+            # print('sending data to bubble', data)
+            result = await self._make_request("patch", f"appointments/{id}", data=data)
             return result
         except HTTPException as e:
             raise HTTPException(status_code=500, detail=f"Failed to create appointment: {e.detail}")
@@ -133,6 +140,10 @@ class BubbleApiClient:
             'key': 'phone_number',
             'constraint_type': 'equals',
             'value': clinic_phone
+        },{
+            'key': 'status',
+            'constraint_type': 'equals',
+            'value': None
         }]
         params = {
             'constraints': json.dumps(constraints),
