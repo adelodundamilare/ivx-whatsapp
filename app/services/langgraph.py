@@ -998,7 +998,6 @@ logger = setup_logger("langgraph", "langgraph.log")
 
 
 from langgraph.graph import StateGraph, END # type: ignore
-from typing import TypedDict
 import asyncio
 from datetime import datetime, timedelta
 import logging
@@ -1012,7 +1011,7 @@ valid_intents = {
     "create_appointment": "create_appointment",
     "cancel_appointment": "cancel_appointment",
     "check_appointment_status": "check_appointment_status",
-    "greet": "greet"
+    "greet": "greet",
 }
 # memory = ConversationBufferMemory()
 class ClinicAssistant:
@@ -1248,12 +1247,15 @@ Respond with only the intent label.
     def _route_after_classify(self, _: ClinicState) -> str:
         print('calling _route_after_classify kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
-        # print(state, '_route_after_classify state yyyyyyyyyyyyyyyyyyyy')
+        print(state, '_route_after_classify state yyyyyyyyyyyyyyyyyyyy')
 
         if not state.get("clinic_name", "") or not state.get("full_name", ""):
             return "greet"
 
-        if state.get("needs_clarification") and state.get("intent") != "other" and not state.get("intent"):
+        if not state.get("intent") or state.get("intent") == "other":
+            return "wrap_up"
+
+        if state.get("needs_clarification"):
             return state.get("intent")
 
         intent = state.get("intent")
@@ -1340,30 +1342,11 @@ Respond with only the intent label.
         state["clinic_phone"] = clinic_phone
         state["needs_clarification"] = False
 
-        # history = get_message_history(clinic_phone)
-        # history.add_user_message(user_input)  # Use synchronous add for simplicity
-        # logger.info(f"Added user message to history for {clinic_phone}: {user_input}")
-
         final_response = None
         async for output in self.graph.astream(
             state,
             config={"configurable": {"session_id": clinic_phone}}
         ):
             logger.info(f"Node output: {output}")
-            # node_name = list(output.keys())[0]
-            # node_data = output[node_name]
-
-            # Update state with node output
-            # state.update(node_data)
-            # state_manager.update_state(clinic_phone, state)
-            # state_manager.clear_state(clinic_phone)
-
-            # Capture the last response from the history
-            # messages = history.messages  # Use synchronous messages attribute
-            # if messages and messages[-1].type == "ai":
-            #     final_response = messages[-1].content
-        # Handle final response from the last node
-        # if "final_response" in output:
-        #     final_response = output["final_response"]
 
         return final_response or "Something went wrong. Please try again."
