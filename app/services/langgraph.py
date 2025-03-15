@@ -3,18 +3,17 @@ import asyncio
 import json
 import os
 import re
-from typing import Dict, List, TypedDict
-from app.agents.agents import extractor, intent_agent
+from typing import Dict
+from app.agents.agents import intent_agent
 from app.handler.greet import GreetingHandler
 from app.handler.procedure_collector import ProcedureCollector
 from app.models.models import ClinicState, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
-from app.utils.helpers import get_message_history, invoke_ai, send_response
+from app.utils.helpers import invoke_ai, send_response
 from app.utils.logger import setup_logger
 from app.utils.state_manager import StateManager
-from langgraph.graph import StateGraph, START, END # type: ignore
+from langgraph.graph import StateGraph, END # type: ignore
 from datetime import datetime, timedelta
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder # type: ignore
 import openai
 import json
 from app.core.config import settings
@@ -1039,6 +1038,9 @@ class ClinicAssistant:
         handler = GreetingHandler(intent="greet",message=self.message)
         return await handler.general_response()
 
+    async def pause(self, _) -> ClinicState:
+        return
+
     async def create_appointment(self, _: ClinicState) -> ClinicState:
         print('calling create_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         handler = ProcedureCollector(intent="create_appointment", message=self.message)
@@ -1047,16 +1049,19 @@ class ClinicAssistant:
     async def classify_intent(self, _: ClinicState) -> ClinicState:
         print('calling classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
-        print(state, 'classify_intent state kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        # print(state, 'classify_intent state kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
 
         clinic_phone = state.get("clinic_phone", "")
         user_input = state.get("user_input", "")
 
-        # if not state.get("clinic_name", "") or not state.get("full_name", ""):
-        #     return "greet"
+        if not state.get("clinic_name", "") or not state.get("full_name", ""):
+            return self._update_state({ "intent": "greet" })
 
-        # if state.get("needs_clarification") and state.get("intent") != "other":
-        #     return state.get("intent")
+        if state.get("needs_clarification") and state.get("intent") != "other":
+            return self._update_state({ "intent": state.get("intent") })
+
+        if state.get("confirmation_status") == "PENDING":
+            return self._update_state({ "intent": state.get("intent") })
 
         prompt = f"""
 Identify the primary intent of the user's message.
@@ -1248,7 +1253,7 @@ Respond with only the intent label.
         if not state.get("clinic_name", "") or not state.get("full_name", ""):
             return "greet"
 
-        if state.get("needs_clarification") and state.get("intent") != "other":
+        if state.get("needs_clarification") and state.get("intent") != "other" and not state.get("intent"):
             return state.get("intent")
 
         intent = state.get("intent")
@@ -1261,7 +1266,7 @@ Respond with only the intent label.
         state = self.state
         if state.get("needs_clarification"):
             return END
-        return "wrap_up"
+        return "pause"
 
     def _route_after_prompt_doctors(self, state: ClinicState) -> str:
         print('calling _route_after_prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
@@ -1313,6 +1318,7 @@ Respond with only the intent label.
         workflow.add_node("check_appointment_status", self.check_appointment_status)
         workflow.add_node("wrap_up", self.wrap_up)
         workflow.add_node("intro", self.intro)
+        workflow.add_node("pause", self.pause)
 
         workflow.set_entry_point("classify_intent")
         workflow.add_conditional_edges("greet", self._route_after_greet)
@@ -1350,6 +1356,7 @@ Respond with only the intent label.
             # Update state with node output
             # state.update(node_data)
             # state_manager.update_state(clinic_phone, state)
+            # state_manager.clear_state(clinic_phone)
 
             # Capture the last response from the history
             # messages = history.messages  # Use synchronous messages attribute

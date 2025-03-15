@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 from typing import Dict
 from app.models.models import Message
@@ -8,6 +8,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory # type
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder # type: ignore
 from langchain_openai import ChatOpenAI # type: ignore
 import os
+from dateutil import parser # type: ignore
 
 llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0.7)
 
@@ -197,3 +198,81 @@ def validate_time(time_str: str) -> bool:
 
     return False
 
+
+def validate_and_parse_date(date_input):
+    today = datetime.now().date()
+
+    relative_terms = {
+        "today": today,
+        "tomorrow": today + timedelta(days=1),
+        "next day": today + timedelta(days=1),
+        "day after tomorrow": today + timedelta(days=2),
+    }
+
+    date_input_lower = date_input.lower().strip()
+    if date_input_lower in relative_terms:
+        return relative_terms[date_input_lower].strftime("%Y-%m-%d")
+
+    day_match = re.match(r"next (monday|tuesday|wednesday|thursday|friday|saturday|sunday)", date_input_lower)
+    if day_match:
+        day_name = day_match.group(1)
+        days_of_week = {"monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+                        "friday": 4, "saturday": 5, "sunday": 6}
+        target_day = days_of_week[day_name]
+
+        days_ahead = target_day - today.weekday()
+        if days_ahead <= 0:
+            days_ahead += 7
+
+        next_date = today + timedelta(days=days_ahead)
+        return next_date.strftime("%Y-%m-%d")
+
+    days_match = re.match(r"in (\d+) days?", date_input_lower)
+    if days_match:
+        days = int(days_match.group(1))
+        future_date = today + timedelta(days=days)
+        return future_date.strftime("%Y-%m-%d")
+
+    try:
+        parsed_date = parser.parse(date_input, fuzzy=True).date()
+
+        if parsed_date < today:
+            if parsed_date.year == today.year:
+                parsed_date = parsed_date.replace(year=today.year + 1)
+
+            if parsed_date < today:
+                return None
+
+        return parsed_date.strftime("%Y-%m-%d")
+    except (ValueError, parser.ParserError):
+        return None
+
+def validate_and_parse_time(time_input):
+    time_input = time_input.lower().strip()
+
+    if time_input.startswith("at "):
+        time_input = time_input[3:]
+
+    if "o'clock" in time_input:
+        time_input = time_input.replace("o'clock", "").strip()
+
+    if time_input == "noon":
+        return "12:00"
+    if time_input == "midnight":
+        return "00:00"
+
+    time_periods = {
+        "morning": "09:00",
+        "afternoon": "14:00",
+        "evening": "18:00",
+        "night": "20:00"
+    }
+
+    if time_input in time_periods:
+        return time_periods[time_input]
+
+    try:
+        parsed_time = parser.parse(time_input).time()
+        return parsed_time.strftime("%H:%M")
+    except (ValueError, parser.ParserError):
+        return None

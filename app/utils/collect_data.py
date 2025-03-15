@@ -43,5 +43,4 @@ class DataCollector:
             self.state_manager.update_state(self.clinic_phone, data)
 
     def get_missing_fields(self, required_fields: List[str], current_data: Dict[str, Any]) -> List[str]:
-        """Get list of missing required fields"""
         return [field for field in required_fields if field not in current_data or not self._is_valid_value(current_data.get(field))]
