@@ -1,3 +1,4 @@
+from datetime import datetime
 import traceback
 from app.models.models import Message
 from app.services.bubble_client import bubble_client
@@ -12,7 +13,15 @@ logger = setup_logger("doctor_service", "doctor_service.log")
 class DoctorService:
     def __init__(self):
         self.state_manager = DoctorStateManager()
-    #     self.whatsapp_service = WhatsAppBusinessAPI(message=Message(), business_phone_number_id=settings.WHATSAPP_BUSINESS_PHONE_NUMBER_ID)
+        self.whatsapp_service = WhatsAppBusinessAPI(
+            message=Message(
+                phone_number="2348099868604",
+                message_id='',
+                content="",
+                timestamp=datetime.now(),
+                business_phone_number_id="5551420530",
+                type="text"),
+            business_phone_number_id="5551420530")
 
     async def init(self):
         try:
@@ -20,15 +29,18 @@ class DoctorService:
             if len(appointments) < 1:
                 return
 
+            appointment = appointments[0]
+
             # for now, let's work with the first guy...
-            best_doctor = await bubble_client.find_unassigned_appointments()
+            best_doctor = await bubble_client.find_best_doctor()
+            # print(best_doctor, 'best_doctor')
             # message best doctor
             prompt = f"""
             Hi {best_doctor.get('first_name')}, 😊
 
             I'm IVX, an AI assistant helping clinics connect with the right doctors for their patients.
 
-            A clinic is requesting a patient booking for *{appointments.get('service_type')}*. Would you be available on *{best_doctor.get('date')}*?
+            A clinic is requesting a patient booking for *{appointment.get('service_type')}*. Would you be available on *{appointment.get('date')}*?
 
             Let me know if this works for you. ✅
             """
@@ -37,7 +49,7 @@ class DoctorService:
             response = await invoke_doctor_ai(prompt, phone)
 
             # update state, db too...
-            self.state_manager.update_state(phone, {"appointment": appointments})
+            self.state_manager.update_state(phone, {"appointment": appointment})
             await self.whatsapp_service.send_text_message(response)
         except Exception as e:
             logger.error(f"Error in message processing: {str(e)}")
