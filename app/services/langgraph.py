@@ -9,6 +9,7 @@ from app.handler.cancel_handler import CancelHandler
 from app.handler.edit_handler import EditHandler
 from app.handler.greet import GreetingHandler
 from app.handler.procedure_collector import ProcedureCollector
+from app.handler.status_handler import StatusHandler
 from app.models.models import ClinicState, Message
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.helpers import invoke_ai, send_response
@@ -1058,6 +1059,11 @@ class ClinicAssistant:
         handler = CancelHandler(intent="cancel_appointment", message=self.message)
         return await handler.process()
 
+    async def check_appointment_status(self, _: ClinicState) -> ClinicState:
+        print('calling check_appointment_status kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = StatusHandler(intent="check_appointment_status", message=self.message)
+        return await handler.process()
+
     async def classify_intent(self, _: ClinicState) -> ClinicState:
         print('calling classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
@@ -1131,21 +1137,14 @@ Respond with only the intent label.
             "needs_clarification": True
         }
 
-    async def check_appointment_status(self, state: ClinicState) -> ClinicState:
-        print('calling check_appointment_status kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        clinic_phone = state.get("clinic_phone", "")
-        name = state.get("name", "")
-        clinic_location = state.get("clinic_location", "")
-
-        appointment = await self.db.find_appointment(clinic_phone)
-
-        if not appointment:
-            prompt = f"Tell {name} at {clinic_location} that no appointments are scheduled, and ask if they'd like to book one."
-        else:
-            prompt = f"Inform {name} at {clinic_location} about their appointment: {appointment['procedure']} for {appointment['patient_name']} with {appointment['doctor']} on {appointment['datetime']}, and ask if they need help with anything else."
-        response = await invoke_ai(prompt, clinic_phone)
-        await send_response(clinic_phone, response, message=self.message)
-        return {"appointment": appointment}
+    # async def check_appointment_status(self, state: ClinicState) -> ClinicState:
+    #     if not appointment:
+    #         prompt = f"Tell {name} at {clinic_location} that no appointments are scheduled, and ask if they'd like to book one."
+    #     else:
+    #         prompt = f"Inform {name} at {clinic_location} about their appointment: {appointment['procedure']} for {appointment['patient_name']} with {appointment['doctor']} on {appointment['datetime']}, and ask if they need help with anything else."
+    #     response = await invoke_ai(prompt, clinic_phone)
+    #     await send_response(clinic_phone, response, message=self.message)
+    #     return {"appointment": appointment}
 
     async def wrap_up(self, _) -> ClinicState:
         print('calling wrap_up kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
@@ -1214,8 +1213,9 @@ Respond with only the intent label.
 
     def _route_after_check_appointment_status(self, state: ClinicState) -> str:
         print('calling _route_after_process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        return "wrap_up"
-
+        if state.get("needs_clarification"):
+            return END
+        return "pause"
     def _route_after_wrap_up(self, state: ClinicState) -> str:
         print('calling _route_after_wrap_up kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         if state.get("needs_clarification"):

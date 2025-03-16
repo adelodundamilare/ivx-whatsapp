@@ -1,4 +1,3 @@
-from datetime import datetime
 from app.models.models import Message
 from app.services.bubble_client import bubble_client
 from app.utils import helpers
@@ -7,7 +6,7 @@ from app.utils.helpers import invoke_ai, send_response
 from app.utils.state_manager import StateManager
 
 
-class CancelHandler:
+class BaseAppointmentHandler:
     def __init__(self, intent: str, message: Message):
         self.message = message
         self.state_manager = StateManager()
@@ -18,6 +17,9 @@ class CancelHandler:
         self.collector = DataCollector(self.clinic_phone, self.user_input)
         self.required_fields = ["service_type", "patient_gender", "location", "patient_name", "patient_age_range", "date", "time"]
         self.optional_fields = ["additional_note"]
+
+        self.handler_name = "appointment"
+        self.confirmation_intents = ["CONFIRM"]
 
     @property
     def state(self):
@@ -41,7 +43,7 @@ class CancelHandler:
         return self._update_state_expect_resp()
 
     async def _request_booking_code(self):
-        prompt = "Politely ask the user to provide a valid booking code for the appointment they want to cancel or confirm if they prefer we fetch some of their latest appointments. Be conversational and friendly."
+        prompt = f"Politely ask the user to provide a valid booking code for the appointment they want to {self.handler_name} or confirm if they prefer we fetch some of their latest appointments. Be conversational and friendly."
         response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
 
@@ -66,16 +68,15 @@ class CancelHandler:
         return appointment
 
     async def _fetch_latest_appointment(self):
-
         try:
             appointments = await bubble_client.find_latest_appointments(self.clinic_phone)
 
             if not appointments:
-                prompt = f"Inform {self.state.get('full_name', '')} that no appointments were found to cancel, and ask if they'd like to book one instead."
+                prompt = self._get_no_appointments_prompt()
                 response = await invoke_ai(prompt, self.clinic_phone)
                 return await self._send_response(self.clinic_phone, response)
 
-            result = "Your Upcoming Appointments:\n\nPlease copy the *Booking Code* of the appointment you'd like to cancel and paste it in your response. 😊\n\n"
+            result = f"Your Upcoming Appointments:\n\nPlease copy the *Booking Code* of the appointment you'd like to {self.handler_name} and paste it in your response. 😊\n\n"
 
             for i, data in enumerate(appointments, 1):
                 result += f"Booking Code: {data.get('code')}\n"
@@ -84,7 +85,7 @@ class CancelHandler:
                 result += f"Appointment Date: {data.get('date')}\n\n"
 
                 if i < len(appointments):
-                    result += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                    result += "\n"
 
             return await self._send_response(self.clinic_phone, result)
         except Exception as e:
@@ -93,6 +94,8 @@ class CancelHandler:
             response = await invoke_ai(prompt, self.clinic_phone)
             return await self._send_response(self.clinic_phone, response)
 
+    def _get_no_appointments_prompt(self):
+        return "User has requested to find their appointment, but no appointments were found in our system. Politely inform them that we couldn't locate any appointments with their phone number and suggest they verify their information or book a new appointment."
 
     async def _request_appointment_fetch(self):
         prompt =f"""
@@ -134,35 +137,38 @@ Respond with only the intent label.
         self._update_state_expect_resp(**{"booking_code": booking_code})
         return True
 
-
     async def _handle_appointment_change(self, appointment):
-        prompt =f"""
+        intent_prompt = self._get_confirmation_intent_prompt()
+        intent = await invoke_ai(intent_prompt, self.clinic_phone)
+        print(intent, self.user_input, '_handle_appointment_change confirm intent')
+
+        if intent in self.confirmation_intents:
+            self.state["confirmation_status"] = "CONFIRMED"
+            self._update_state_simple(**{"confirmation_status":"CONFIRMED", "needs_clarification":False})
+            return await self._save_data(appointment)
+
+        if hasattr(self, '_handle_secondary_intent') and await self._handle_secondary_intent(intent, appointment):
+            return
+
+        prompt = self._get_appointment_summary_prompt(appointment)
+        await self._send_response(self.clinic_phone, prompt)
+        return self._update_state_expect_resp(**{"appointment":appointment, "confirmation_status":"PENDING"})
+
+    def _get_confirmation_intent_prompt(self):
+        return f"""
 Based on the following user response, determine the intent:
 
 Possible intents:
 - CONFIRM: If the user confirms the appointment change.
-- ABORT: If the user choose to abort the operation.
 - OTHER: If the response is unclear or unrelated.
 
 User input: "{self.user_input}"
 
 Respond with only the intent label.
 """
-        intent = await invoke_ai(prompt, self.clinic_phone)
-        print(intent, self.user_input, '_handle_appointment_change confirm intent')
 
-        if intent == 'CONFIRM':
-            self.state["confirmation_status"] = "CONFIRMED"
-            self._update_state_simple(**{"confirmation_status":"CONFIRMED", "needs_clarification":False})
-            return await self._save_data(appointment)
-
-        if intent == 'ABORT':
-            prompt = f"Inform {self.state.get('full_name')} that the cancellation was aborted, and ask how else they'd like to proceed."
-            response = await invoke_ai(prompt, self.clinic_phone)
-            self._update_state_simple(**{"confirmation_status":"CONFIRMED", "needs_clarification":False})
-            return await self._send_response(self.clinic_phone, response)
-
-        prompt = f"""
+    def _get_appointment_summary_prompt(self, appointment):
+        return f"""
 Here is the appointment summary:
 
 - 📅 Date: {appointment.get("date")}
@@ -174,36 +180,39 @@ Here is the appointment summary:
 - ⚧️ Patient Gender: {appointment.get("patient_gender")}
 - 📝 Additional Note: {appointment.get("additional_note")}
 
-Ask {self.state.get('full_name')} to confirm cancellation of the appointment and offer to help with something else if they decline."
+Could you please confirm if these details are correct or let me know what you'd like to change? 😊
 """
-        await self._send_response(self.clinic_phone, prompt)
-        return self._update_state_expect_resp(**{"appointment":appointment, "confirmation_status":"PENDING"})
-
 
     async def _save_data(self, appointment):
         try:
-            data = appointment.copy()
-            if '_id' in data:
-                del data['_id']
-            if 'Created By' in data:
-                del data['Created By']
-            if 'Modified Date' in data:
-                del data['Modified Date']
-            if 'Created Date' in data:
-                del data['Created Date']
-
-            data['status'] = 'CANCELLED'
-
+            data = self._prepare_data_for_save(appointment)
             await bubble_client.update_appointment(id=appointment.get("_id"), data=data)
-            prompt = f"""
-            Inform the user that their booking has been successfully cancelled. Ask if there's anything else they need help with.
-            """
+
+            prompt = self._get_success_prompt()
             response = await invoke_ai(prompt, self.clinic_phone)
             await self._send_response(self.clinic_phone, response)
             self._update_state_simple(**{"appointment":None, "confirmation_status":None})
         except Exception as e:
             print(f"Error in _save_data: {str(e)}")
             return await self._send_response(self.clinic_phone, "An error occurred while updating the appointment. Please try again later.")
+
+    def _prepare_data_for_save(self, appointment):
+        data = appointment.copy()
+        if '_id' in data:
+            del data['_id']
+        if 'Created By' in data:
+            del data['Created By']
+        if 'Modified Date' in data:
+            del data['Modified Date']
+        if 'Created Date' in data:
+            del data['Created Date']
+
+        return data
+
+    def _get_success_prompt(self):
+        return f"""
+        Inform the user that their booking has been successfully updated. Ask if there's anything else they need help with.
+        """
 
     async def _extract_entities(self):
         all_fields = self.required_fields + self.optional_fields
@@ -235,7 +244,6 @@ Ask {self.state.get('full_name')} to confirm cancellation of the appointment and
             return dict(self.state.get("appointment", {}))
 
     # UTILITIES
-
     async def _send_response(self, phone: str, message: str) -> None:
         await send_response(phone, message, message=self.message)
 

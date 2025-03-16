@@ -7,7 +7,7 @@ from app.utils.helpers import invoke_ai, send_response
 from app.utils.state_manager import StateManager
 
 
-class CancelHandler:
+class StatusHandler:
     def __init__(self, intent: str, message: Message):
         self.message = message
         self.state_manager = StateManager()
@@ -16,23 +16,17 @@ class CancelHandler:
         self.intent = intent
 
         self.collector = DataCollector(self.clinic_phone, self.user_input)
-        self.required_fields = ["service_type", "patient_gender", "location", "patient_name", "patient_age_range", "date", "time"]
-        self.optional_fields = ["additional_note"]
 
     @property
     def state(self):
         return self.state_manager.get_state(self.message.phone_number)
 
     async def process(self):
-        if self.state.get("confirmation_status") == "PENDING":
-            appointment = self.state.get("appointment")
-            return await self._handle_appointment_change(appointment)
-
         if await self._is_valid_booking_code():
             appointment = await self._fetch_appointment()
 
             if appointment:
-                return await self._handle_appointment_change(appointment)
+                return await self._show_appointment_status(appointment)
 
         if await self._request_appointment_fetch():
             return await self._fetch_latest_appointment()
@@ -41,7 +35,7 @@ class CancelHandler:
         return self._update_state_expect_resp()
 
     async def _request_booking_code(self):
-        prompt = "Politely ask the user to provide a valid booking code for the appointment they want to cancel or confirm if they prefer we fetch some of their latest appointments. Be conversational and friendly."
+        prompt = "Politely ask the user to provide a valid booking code for the appointment whose status they want to check or confirm if they prefer we fetch some of their latest appointments. Be conversational and friendly."
         response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
 
@@ -134,36 +128,9 @@ Respond with only the intent label.
         self._update_state_expect_resp(**{"booking_code": booking_code})
         return True
 
-
-    async def _handle_appointment_change(self, appointment):
-        prompt =f"""
-Based on the following user response, determine the intent:
-
-Possible intents:
-- CONFIRM: If the user confirms the appointment change.
-- ABORT: If the user choose to abort the operation.
-- OTHER: If the response is unclear or unrelated.
-
-User input: "{self.user_input}"
-
-Respond with only the intent label.
-"""
-        intent = await invoke_ai(prompt, self.clinic_phone)
-        print(intent, self.user_input, '_handle_appointment_change confirm intent')
-
-        if intent == 'CONFIRM':
-            self.state["confirmation_status"] = "CONFIRMED"
-            self._update_state_simple(**{"confirmation_status":"CONFIRMED", "needs_clarification":False})
-            return await self._save_data(appointment)
-
-        if intent == 'ABORT':
-            prompt = f"Inform {self.state.get('full_name')} that the cancellation was aborted, and ask how else they'd like to proceed."
-            response = await invoke_ai(prompt, self.clinic_phone)
-            self._update_state_simple(**{"confirmation_status":"CONFIRMED", "needs_clarification":False})
-            return await self._send_response(self.clinic_phone, response)
-
+    async def _show_appointment_status(self, appointment: dict):
         prompt = f"""
-Here is the appointment summary:
+Here is the appointment status:
 
 - 📅 Date: {appointment.get("date")}
 - 🕒 Time: {appointment.get("time")}
@@ -173,66 +140,13 @@ Here is the appointment summary:
 - 📍 Appointment Location: {appointment.get("location")}
 - ⚧️ Patient Gender: {appointment.get("patient_gender")}
 - 📝 Additional Note: {appointment.get("additional_note")}
+- 👤 Status: {appointment.get("status")}
 
-Ask {self.state.get('full_name')} to confirm cancellation of the appointment and offer to help with something else if they decline."
+Could you please confirm if these details are correct or let me know what you'd like to change? 😊
 """
-        await self._send_response(self.clinic_phone, prompt)
-        return self._update_state_expect_resp(**{"appointment":appointment, "confirmation_status":"PENDING"})
-
-
-    async def _save_data(self, appointment):
-        try:
-            data = appointment.copy()
-            if '_id' in data:
-                del data['_id']
-            if 'Created By' in data:
-                del data['Created By']
-            if 'Modified Date' in data:
-                del data['Modified Date']
-            if 'Created Date' in data:
-                del data['Created Date']
-
-            data['status'] = 'CANCELLED'
-
-            await bubble_client.update_appointment(id=appointment.get("_id"), data=data)
-            prompt = f"""
-            Inform the user that their booking has been successfully cancelled. Ask if there's anything else they need help with.
-            """
-            response = await invoke_ai(prompt, self.clinic_phone)
-            await self._send_response(self.clinic_phone, response)
-            self._update_state_simple(**{"appointment":None, "confirmation_status":None})
-        except Exception as e:
-            print(f"Error in _save_data: {str(e)}")
-            return await self._send_response(self.clinic_phone, "An error occurred while updating the appointment. Please try again later.")
-
-    async def _extract_entities(self):
-        all_fields = self.required_fields + self.optional_fields
-        updated_data = await self.collector.extract_entities(all_fields)
-        print(updated_data, 'extracted data to be updated')
-
-        if updated_data:
-            update_data = dict(self.state.get("appointment", {}))
-
-            if "date" in updated_data:
-                validated_date = helpers.validate_and_parse_date(updated_data["date"])
-                if validated_date:
-                    updated_data["date"] = validated_date
-                else:
-                    print("Date validation failed", validated_date)
-
-            if "time" in updated_data:
-                validated_time = helpers.validate_and_parse_time(updated_data["time"])
-                if validated_time:
-                    updated_data["time"] = validated_time
-                else:
-                    print("Time validation failed", validated_time)
-
-            for field, value in updated_data.items():
-                update_data[field] = value
-
-            return update_data
-        else:
-            return dict(self.state.get("appointment", {}))
+        response = await invoke_ai(prompt, self.clinic_phone)
+        await self._send_response(self.clinic_phone, response)
+        return self._update_state_simple(**{"needs_clarification": False, "intent": None})
 
     # UTILITIES
 
@@ -257,3 +171,4 @@ Ask {self.state.get('full_name')} to confirm cancellation of the appointment and
             update_data.update(kwargs)
 
         self.collector.update_state(update_data)
+
