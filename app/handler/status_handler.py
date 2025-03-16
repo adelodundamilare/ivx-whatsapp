@@ -65,11 +65,11 @@ class StatusHandler:
             appointments = await bubble_client.find_latest_appointments(self.clinic_phone)
 
             if not appointments:
-                prompt = f"Inform {self.state.get('full_name', '')} that no appointments were found to cancel, and ask if they'd like to book one instead."
+                prompt = f"Inform {self.state.get('full_name', '')} that no appointments were found, and ask if they'd like to book one instead."
                 response = await invoke_ai(prompt, self.clinic_phone)
                 return await self._send_response(self.clinic_phone, response)
 
-            result = "Your Upcoming Appointments:\n\nPlease copy the *Booking Code* of the appointment you'd like to cancel and paste it in your response. 😊\n\n"
+            result = "Your Upcoming Appointments:\n\nPlease copy the *Booking Code* of the appointment you'd like to check and paste it in your response. 😊\n\n"
 
             for i, data in enumerate(appointments, 1):
                 result += f"Booking Code: {data.get('code')}\n"
@@ -142,6 +142,7 @@ Here is the appointment status:
 - 📝 Additional Note: {appointment.get("additional_note")}
 - 👤 Status: {appointment.get("status")}
 """
+        await self._send_response(self.clinic_phone, prompt)
         response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)
         return self._update_state_simple(**{"needs_clarification": False, "intent": None})
