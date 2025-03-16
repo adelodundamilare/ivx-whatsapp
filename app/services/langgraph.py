@@ -17,7 +17,7 @@ from app.core.config import settings
 
 openai.api_key = settings.OPENAI_API_KEY
 
-logger = setup_logger("langgraph", "langgraph.log")
+logger = setup_logger("clinic_assistant", "clinic_assistant.log")
 
 # LANGUAGES = {
 #     "en": {"booked": "✅ Your appointment has been booked!", "updated": "✏️ Your appointment has been updated!", "canceled": "❌ Your appointment has been canceled!", "not_understood": "🤖 I didn't understand your request. Please try again!", "greeting": "👋 Hello! How can I assist you today?", "thanks": "🙏 You're welcome! Let me know if you need anything else."},

@@ -1,6 +1,7 @@
 
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 from app.models.models import Message
+from app.services.doctor_service import DoctorService
 from app.utils.state_manager import StateManager
 from app.engine import AppointmentOrchestrator
 from app.core.config import settings
@@ -99,6 +100,7 @@ async def verify_webhook(request: Request):
 @router.get("/get-doctor-approval")
 async def get_doctor_approval(request: Request):
     try:
+        await DoctorService().init()
         # CRON RUNS EVERY 5MINS
         # fetch all appointments with status None
         # fetch all available doctors...

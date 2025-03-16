@@ -2,16 +2,16 @@ import json
 import os
 from typing import Any, Dict
 
-class StateManager:
+class DoctorStateManager:
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super(StateManager, cls).__new__(cls)
+            cls._instance = super(DoctorStateManager, cls).__new__(cls)
             cls._instance._initialize()
         return cls._instance
 
-    def _initialize(self, storage_file: str = "user_states.json"):
+    def _initialize(self, storage_file: str = "doctor_states.json"):
         self.storage_file = storage_file
         self.states: Dict[str, Dict[str, Any]] = self._load_states()
 
@@ -36,8 +36,6 @@ class StateManager:
     def get_state(self, clinic_phone: str) -> Dict[str, Any]:
         return self.states.get(clinic_phone, {
             "full_name": "",
-            "clinic_name": "",
-            "doctor_index": 0,
             "history": [],
             "needs_clarification": False,
             "is_processing": False,

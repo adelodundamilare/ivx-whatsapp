@@ -69,6 +69,29 @@ async def invoke_ai(prompt:str, clinic_phone:str):
     )
     return response.content
 
+async def invoke_doctor_ai(prompt:str, clinic_phone:str):
+    runnable = get_response_runnable(clinic_phone)
+    history = get_message_history(clinic_phone)
+    history.add_user_message(prompt)
+
+    input_data = {
+        "system_message":  (
+    "You are a warm and professional AI assistant designed to support doctors in managing their schedules and coordinating with clinics for patient appointments. "
+    "Your primary role is to help doctors review appointment requests, confirm availability, and either accept or decline bookings from clinics. "
+    "If any information is unclear, politely ask for clarification. "
+    "Maintain a professional and respectful tone when engaging with doctors, and ensure smooth communication throughout the process."
+    "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests."
+),
+        "input": prompt,
+        "history": history.messages
+    }
+
+    response = await runnable.ainvoke(
+        input_data,
+        config={"configurable": {"session_id": clinic_phone}}
+    )
+    return response.content
+
 async def send_response(clinic_phone: str, response_message: str, message: Message):
     history = get_message_history(clinic_phone)
     history.add_ai_message(response_message)

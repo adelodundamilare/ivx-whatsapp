@@ -2,6 +2,8 @@
 import traceback
 from app.managers.conversation import ConversationManager
 from app.models.models import Message
+from app.services.bubble_client import bubble_client
+from app.services.doctor_assitant import DoctorAssistant
 from app.services.langgraph import ClinicAssistant
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.logger import setup_logger
@@ -23,9 +25,17 @@ class AppointmentOrchestrator:
         try:
             user_phone = self.message.phone_number
 
+            try:
+                is_doctor = await bubble_client.is_doctor(user_phone)
+
+                if is_doctor:
+                    assistant = DoctorAssistant(message=self.message)
+                    return await assistant.process_message(phone=user_phone, user_input=self.message.content)
+            except Exception as e:
+                logger.error(f"Error in message processing: {str(e)}")
+
             clinic_assistant = ClinicAssistant(message=self.message)
-            await clinic_assistant.process_message(clinic_phone=user_phone, user_input=self.message.content)
-            return
+            return await clinic_assistant.process_message(clinic_phone=user_phone, user_input=self.message.content)
         except Exception as e:
             logger.error(f"Error in message processing: {str(e)}")
             traceback.print_exc()
