@@ -75,10 +75,10 @@ class StatusHandler:
                 result += f"Booking Code: {data.get('code')}\n"
                 result += f"Patient Name: {data.get('patient_name')}\n"
                 result += f"Service Type: {data.get('service_type')}\n"
-                result += f"Appointment Date: {data.get('date')}\n\n"
+                result += f"Appointment Date: {data.get('date')}\n"
 
                 if i < len(appointments):
-                    result += "\n━━━━━━━━━━━━━━━━━━━━\n\n"
+                    result += "\n━━━━━━━━━━━━━━━━━━━━\n"
 
             return await self._send_response(self.clinic_phone, result)
         except Exception as e:
@@ -141,8 +141,6 @@ Here is the appointment status:
 - ⚧️ Patient Gender: {appointment.get("patient_gender")}
 - 📝 Additional Note: {appointment.get("additional_note")}
 - 👤 Status: {appointment.get("status")}
-
-Could you please confirm if these details are correct or let me know what you'd like to change? 😊
 """
         response = await invoke_ai(prompt, self.clinic_phone)
         await self._send_response(self.clinic_phone, response)

@@ -81,10 +81,10 @@ class EditHandler:
                 result += f"Booking Code: {data.get('code')}\n"
                 result += f"Patient Name: {data.get('patient_name')}\n"
                 result += f"Service Type: {data.get('service_type')}\n"
-                result += f"Appointment Date: {data.get('date')}\n\n"
+                result += f"Appointment Date: {data.get('date')}\n"
 
                 if i < len(appointments):
-                    result += "\n"
+                    result += "\n━━━━━━━━━━━━━━━━━━━━\n"
 
             return await self._send_response(self.clinic_phone, result)
         except Exception as e:
@@ -198,7 +198,7 @@ Could you please confirm if these details are correct or let me know what you'd 
             """
             response = await invoke_ai(prompt, self.clinic_phone)
             await self._send_response(self.clinic_phone, response)
-            self._update_state_simple(**{"appointment":None, "confirmation_status":None})
+            return self._update_state_simple(**{"appointment":None, "confirmation_status":None, "needs_clarification": False, "intent": None})
         except Exception as e:
             print(f"Error in _save_data: {str(e)}")
             return await self._send_response(self.clinic_phone, "An error occurred while updating the appointment. Please try again later.")

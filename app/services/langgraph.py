@@ -1090,6 +1090,7 @@ Possible intents:
 - create_appointment: User wants to book a new appointment
 - cancel_appointment: User wants to cancel an existing appointment
 - edit_appointment: User wants to change or update an existing appointment
+- check_appointment_status: User wants to check the status of an existing appointment
 - greet: User is greeting the system
 - other: None of the above
 
@@ -1136,15 +1137,6 @@ Respond with only the intent label.
             "doctor_index": doctor_index + 1,
             "needs_clarification": True
         }
-
-    # async def check_appointment_status(self, state: ClinicState) -> ClinicState:
-    #     if not appointment:
-    #         prompt = f"Tell {name} at {clinic_location} that no appointments are scheduled, and ask if they'd like to book one."
-    #     else:
-    #         prompt = f"Inform {name} at {clinic_location} about their appointment: {appointment['procedure']} for {appointment['patient_name']} with {appointment['doctor']} on {appointment['datetime']}, and ask if they need help with anything else."
-    #     response = await invoke_ai(prompt, clinic_phone)
-    #     await send_response(clinic_phone, response, message=self.message)
-    #     return {"appointment": appointment}
 
     async def wrap_up(self, _) -> ClinicState:
         print('calling wrap_up kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
