@@ -30,6 +30,7 @@ app.add_exception_handler(RequestValidationError, global_exception_handler)
 app.include_router(whatsapp.router, prefix="/whatsapp", tags=["whatsapp"])
 # app.include_router(utility.router, prefix="/utility", tags=["utility"])
 
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

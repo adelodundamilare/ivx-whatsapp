@@ -1,10 +1,5 @@
 
-import asyncio
-import json
-import os
-import re
 from typing import Dict
-from app.agents.agents import intent_agent
 from app.handler.cancel_handler import CancelHandler
 from app.handler.edit_handler import EditHandler
 from app.handler.greet import GreetingHandler
@@ -18,147 +13,17 @@ from app.utils.state_manager import StateManager
 from langgraph.graph import StateGraph, END # type: ignore
 from datetime import datetime, timedelta
 import openai
-import json
 from app.core.config import settings
 
 openai.api_key = settings.OPENAI_API_KEY
 
 logger = setup_logger("langgraph", "langgraph.log")
 
-# llm = ChatOpenAI(model="gpt-4", temperature=0.5)
-
-
 # LANGUAGES = {
 #     "en": {"booked": "✅ Your appointment has been booked!", "updated": "✏️ Your appointment has been updated!", "canceled": "❌ Your appointment has been canceled!", "not_understood": "🤖 I didn't understand your request. Please try again!", "greeting": "👋 Hello! How can I assist you today?", "thanks": "🙏 You're welcome! Let me know if you need anything else."},
 #     "es": {"booked": "✅ ¡Tu cita ha sido reservada!", "updated": "✏️ ¡Tu cita ha sido actualizada!", "canceled": "❌ ¡Tu cita ha sido cancelada!", "not_understood": "🤖 No entendí tu solicitud. ¡Por favor, intenta de nuevo!", "greeting": "👋 ¡Hola! ¿En qué puedo ayudarte hoy?", "thanks": "🙏 ¡De nada! Avísame si necesitas algo más."}
 # }
 
-# class AssistantState(BaseModel):
-#     user_input: str
-#     intent: str = "unknown"
-#     data: dict = {}
-#     language: str = "en"
-#     message: str = ""
-
-# class MedicalAssistant:
-#     def __init__(self, message: Message):
-#         self.message = message
-#         self.whatsapp_service = WhatsAppBusinessAPI(message)
-#         self.bubble_client = BubbleApiClient()
-#         self.build_graph()
-
-#     def build_graph(self):
-#         self.graph = Graph()
-#         self.graph.add_node("detect_intent", self.intent_task)
-#         self.graph.add_node("handle_intent", self.process_intent_task)
-#         self.graph.add_edge("detect_intent", "handle_intent")
-#         self.graph.set_entry_point("detect_intent")
-
-#     async def intent_task(self, state: AssistantState):
-#         response = await llm.ainvoke(state.user_input)
-#         try:
-#             parsed_response = json.loads(response.content) if isinstance(response.content, str) else {}
-#         except json.JSONDecodeError:
-#             parsed_response = {}
-#         return AssistantState(
-#             user_input=state.user_input,
-#             intent=parsed_response.get("intent", "unknown"),
-#             data=parsed_response.get("data", {}),
-#             language=state.language
-#         )
-
-#     async def process_intent_task(self, state: AssistantState):
-#         extracted_data = state.data
-#         language = state.language
-
-#         if state.intent == "greeting":
-#             state.message = LANGUAGES[language]["greeting"]
-#         elif state.intent == "thanks":
-#             state.message = LANGUAGES[language]["thanks"]
-#         elif state.intent == "book":
-#             await self.bubble_client.book_appointment(extracted_data)
-#             state.message = LANGUAGES[language]["booked"]
-#         elif state.intent == "edit":
-#             await self.bubble_client.edit_appointment(extracted_data)
-#             state.message = LANGUAGES[language]["updated"]
-#         elif state.intent == "cancel":
-#             await self.bubble_client.cancel_appointment(extracted_data)
-#             state.message = LANGUAGES[language]["canceled"]
-#         elif state.intent == "retrieve":
-#             result = await self.bubble_client.get_appointment(extracted_data)
-#             state.message = result.get("details", LANGUAGES[language]["not_understood"])
-#         else:
-#             state.message = LANGUAGES[language]["not_understood"]
-
-#         await self.whatsapp_service.send_text_message(state.message)
-
-#         return AssistantState(
-#             user_input=state.user_input,
-#             intent=state.intent,
-#             data=state.data,
-#             language=state.language,
-#             message=state.message
-#         )
-
-#     async def chat(self, user_input: str, language: str = "en"):
-#         state = AssistantState(user_input=user_input, language=language)
-#         graph_executor = self.graph.compile()
-#         print(state, 'state')
-#         async for output in graph_executor.astream(state):
-#             state = AssistantState(**output)
-#         # await self.whatsapp_service.send_text_message(state.message)
-
-
-
-
-
-
-# class BubbleDB:
-#     def __init__(self):
-#         self.doctors = {
-#             "Dr. Smith": {"specialties": ["checkup"], "location": "Downtown", "phone": "whatsapp:+1234567890"},
-#             "Dr. Jones": {"specialties": ["surgery"], "location": "Downtown", "phone": "whatsapp:+1234567891"},
-#             "Dr. Brown": {"specialties": ["dental"], "location": "Uptown", "phone": "whatsapp:+1234567892"}
-#         }
-#         self.appointments = []  # {"clinic_phone": "", "patient_name": "", "procedure": "", "doctor": "", "datetime": "", "clinic_location": ""}
-#         self.doctor_preferences = {}  # Dynamic mapping if needed
-
-#     def save_appointment(self, appointment):
-#         self.appointments.append(appointment)
-#         return True
-
-#     def get_doctors_by_location(self, location):
-#         return [name for name, info in self.doctors.items()]  # Return all doctors for now (refine later)
-
-#     def find_appointment(self, clinic_phone):
-#         return next((appt for appt in self.appointments if appt["clinic_phone"] == clinic_phone), None)
-
-#     def update_appointment(self, clinic_phone, new_details):
-#         for i, appt in enumerate(self.appointments):
-#             if appt["clinic_phone"] == clinic_phone:
-#                 self.appointments[i].update(new_details)
-#                 return True
-#         return False
-
-#     def cancel_appointment(self, clinic_phone):
-#         for i, appt in enumerate(self.appointments):
-#             if appt["clinic_phone"] == clinic_phone:
-#                 del self.appointments[i]
-#                 return True
-#         return False
-
-# class ClinicState(TypedDict):
-#     user_input: str
-#     intent: str
-#     intent_confidence: float
-#     appointment: dict
-#     messages: Annotated[List[dict], operator.add]
-#     needs_clarification: bool
-#     conversation_step: str
-#     clinic_phone: str
-#     clinic_info: dict  # {"name": str, "clinic": str}
-#     doctor_index: int
-#     clarification_attempts: int
 
 # class ClinicAssistant:
 #     def __init__(self, message: Message):
@@ -916,32 +781,6 @@ logger = setup_logger("langgraph", "langgraph.log")
 # def handle_unknown_intent_node(state: GraphState):
 #     return {"response": "Sorry, I didn't understand that. How can I help?"}
 
-# def route_based_on_intent(state):
-#     intent = state.intent
-#     intent_map = { # Define intent_map here for clarity
-#         "Greet": "greet",
-#         "BookAppointment": "ask_procedure_info",
-#         "ProvideProcedureInfo": "extract_procedure_info",
-#         "ConfirmDoctor": "confirm_appointment",
-#         "Unknown": "handle_unknown_intent",
-#     }
-#     return intent_map.get(state.intent, "handle_unknown_intent") # Default to unknown if intent not in map
-
-# # def route_based_on_intent(state):
-# #     intent = state.intent
-# #     if intent == "Greet":
-# #         return "greet"
-# #     elif intent == "BookAppointment":
-# #         return "ask_procedure_info"
-# #     elif intent == "ProvideProcedureInfo":
-# #         return "extract_procedure_info"
-# #     elif intent == "ConfirmDoctor":
-# #         return "confirm_appointment"
-# #     elif intent == "Unknown":
-# #         return "handle_unknown_intent"
-# #     else:
-# #         return "handle_unknown_intent"
-
 # class DoctorAgent:
 #     def __init__(self, doctor_id):
 #         self.doctor_id = doctor_id
@@ -1001,12 +840,7 @@ logger = setup_logger("langgraph", "langgraph.log")
 
 
 from langgraph.graph import StateGraph, END # type: ignore
-import asyncio
 from datetime import datetime, timedelta
-import logging
-import json
-import os
-import re
 
 state_manager = StateManager()
 

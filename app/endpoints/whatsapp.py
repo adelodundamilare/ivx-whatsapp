@@ -1,7 +1,6 @@
 
 from fastapi import APIRouter, BackgroundTasks, Request, HTTPException
 from app.models.models import Message
-from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.state_manager import StateManager
 from app.engine import AppointmentOrchestrator
 from app.core.config import settings
@@ -93,6 +92,38 @@ async def verify_webhook(request: Request):
             return int(challenge)
         else:
             raise HTTPException(status_code=403, detail="Forbidden")
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/get-doctor-approval")
+async def get_doctor_approval(request: Request):
+    try:
+        # CRON RUNS EVERY 5MINS
+        # fetch all appointments with status None
+        # fetch all available doctors...
+        # match doctor to appointments depending on the set preference
+        # message doctor via whatsapp api
+        # handle doctor's response
+        # if not doctor response in 15 minutes, send a reminder
+        # if no response still after another 15mins cancel appointment, find another doctor and repeat.
+        # if response is declined, find another doctor
+        # if response is accepted, update appointment status and send a message to clinic...
+        # RESPONSE IS ACCEPT OR DECLINE, DO NOTHING ELSE...
+        print('yello!')
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/appointment-reminder")
+async def appointment_reminder(request: Request):
+    try:
+        # CRON RUN ONCE EVERYDAY
+        # fetch all accepted appointments
+        # check if appointment date is less than 1 day
+        # if less than 1 day, send a reminder to doctor and clinic...
+        # DO NOTHING ELSE...
+        print('yello!')
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
