@@ -5,6 +5,7 @@ import os
 import re
 from typing import Dict
 from app.agents.agents import intent_agent
+from app.handler.cancel_handler import CancelHandler
 from app.handler.edit_handler import EditHandler
 from app.handler.greet import GreetingHandler
 from app.handler.procedure_collector import ProcedureCollector
@@ -1052,6 +1053,11 @@ class ClinicAssistant:
         handler = EditHandler(intent="edit_appointment", message=self.message)
         return await handler.process()
 
+    async def cancel_appointment(self, _: ClinicState) -> ClinicState:
+        print('calling cancel_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        handler = CancelHandler(intent="cancel_appointment", message=self.message)
+        return await handler.process()
+
     async def classify_intent(self, _: ClinicState) -> ClinicState:
         print('calling classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         state = self.state
@@ -1125,96 +1131,6 @@ Respond with only the intent label.
             "needs_clarification": True
         }
 
-    async def confirm_appointment(self, state: ClinicState) -> ClinicState:
-        print('calling confirm_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        clinic_phone = state.get("clinic_phone", "")
-        user_input = state.get("user_input", "")
-        name = state.get("name", "")
-        clinic_location = state.get("clinic_location", "")
-
-        if state.get("needs_clarification", True):
-            # history
-            intent_data = await intent_agent(message=user_input)
-            accepted = intent_data.get("entities", {}).get("confirmation", user_input.lower()) == "yes"
-
-            if accepted:
-                appointment = {
-                    "clinic_phone": clinic_phone,
-                    "patient_name": state.get("patient_name", ""),
-                    "procedure": state.get("procedure", ""),
-                    "doctor": state.get("doctor", ""),
-                    "datetime": state.get("datetime", ""),
-                    "clinic_location": clinic_location
-                }
-                await self.db.save_appointment(appointment)
-                message =f"New booking: {state['procedure']} for {state['patient_name']} on {state['datetime']}."
-                to_number = self.db.doctors[state["doctor"]]["phone"]
-                await self.whatsapp_service.send_text_message(to_number, message)
-                asyncio.create_task(self.db.schedule_reminder(clinic_phone, appointment, clinic_location))
-                prompt = f"Confirm to {name} at {clinic_location} that {state['procedure']} for {state['patient_name']} with {state['doctor']} on {state['datetime']} is booked. Mention a reminder will be sent 1 day before, and ask if they need help with anything else."
-                response = await invoke_ai(prompt, clinic_phone)
-                await send_response(clinic_phone, response, message=self.message)
-                return {"appointment": appointment, "needs_clarification": False}
-            else:
-                prompt = f"Let {name} at {clinic_location} know you'll look for another doctor for {state['patient_name']}'s {state['procedure']}, and ask if they have a preferred date."
-                response = await invoke_ai(prompt, clinic_phone)
-                await send_response(clinic_phone, response, message=self.message)
-                return {"needs_clarification": False}
-
-        prompt = "Please respond with 'yes' or 'no' to confirm the booking."
-        response = await invoke_ai(prompt, clinic_phone)
-        await send_response(clinic_phone, response, message=self.message)
-        return {"needs_clarification": True}
-
-    async def cancel_appointment(self, state: ClinicState) -> ClinicState:
-        print('calling cancel_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        clinic_phone = state.get("clinic_phone", "")
-        name = state.get("name", "")
-        clinic_location = state.get("clinic_location", "")
-
-        appointment = await self.db.find_appointment(clinic_phone)
-        if not appointment:
-            prompt = f"Inform {name} at {clinic_location} that no appointments were found to cancel, and ask if they'd like to book one instead."
-            response = await invoke_ai(prompt, clinic_phone)
-            await send_response(clinic_phone, response, message=self.message)
-            return {}
-
-        prompt = f"Ask {name} at {clinic_location} to confirm cancellation of the appointment: {appointment['procedure']} for {appointment['patient_name']} with {appointment['doctor']} on {appointment['datetime']} (yes/no), and offer to help with something else if they decline."
-        response = await invoke_ai(prompt, clinic_phone)
-        await send_response(clinic_phone, response, message=self.message)
-        return {
-            "appointment": appointment,
-            "needs_clarification": True
-        }
-
-    async def process_cancel(self, state: ClinicState) -> ClinicState:
-        print('calling process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        clinic_phone = state.get("clinic_phone", "")
-        user_input = state.get("user_input", "")
-        name = state.get("name", "")
-        clinic_location = state.get("clinic_location", "")
-
-        if state.get("needs_clarification", True):
-            intent_data = await intent_agent(message=user_input)
-            confirmed = intent_data.get("entities", {}).get("confirmation", user_input.lower()) == "yes"
-
-            if confirmed:
-                await self.db.cancel_appointment(clinic_phone)
-                prompt = f"Let {name} at {clinic_location} know the appointment for {state['appointment']['patient_name']} has been cancelled, and ask if they need help with anything else."
-                response = await invoke_ai(prompt, clinic_phone)
-                await send_response(clinic_phone, response, message=self.message)
-                return {"appointment": {}, "needs_clarification": False}
-            else:
-                prompt = f"Inform {name} at {clinic_location} that the cancellation was aborted, and ask how else they'd like to proceed."
-                response = await invoke_ai(prompt, clinic_phone)
-                await send_response(clinic_phone, response, message=self.message)
-                return {"needs_clarification": False}
-
-        prompt = "Please respond with 'yes' or 'no' to confirm the cancellation."
-        response = await invoke_ai(prompt, clinic_phone)
-        await send_response(clinic_phone, response, message=self.message)
-        return {"needs_clarification": True}
-
     async def check_appointment_status(self, state: ClinicState) -> ClinicState:
         print('calling check_appointment_status kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         clinic_phone = state.get("clinic_phone", "")
@@ -1284,27 +1200,17 @@ Respond with only the intent label.
             return END
         return "pause"
 
+    def _route_after_cancel_appointment(self, state: ClinicState) -> str:
+        print('calling _route_after_cancel_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        if state.get("needs_clarification"):
+            return END
+        return "pause"
+
     def _route_after_prompt_doctors(self, state: ClinicState) -> str:
         print('calling _route_after_prompt_doctors kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         if state.get("needs_clarification"):
             return "confirm_appointment"
         return "prompt_doctors"
-
-    def _route_after_confirm_appointment(self, state: ClinicState) -> str:
-        print('calling _route_after_confirm_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        if state.get("needs_clarification"):
-            return "confirm_appointment"
-        return "wrap_up"
-
-    def _route_after_cancel_appointment(self, state: ClinicState) -> str:
-        print('calling _route_after_cancel_appointment kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        if state.get("needs_clarification"):
-            return "process_cancel"
-        return "cancel_appointment"
-
-    def _route_after_process_cancel(self, state: ClinicState) -> str:
-        print('calling _route_after_process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        return "wrap_up"
 
     def _route_after_check_appointment_status(self, state: ClinicState) -> str:
         print('calling _route_after_process_cancel kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
@@ -1328,11 +1234,9 @@ Respond with only the intent label.
         workflow.add_node("classify_intent", self.classify_intent)
         workflow.add_node("create_appointment", self.create_appointment)
         workflow.add_node("edit_appointment", self.edit_appointment)
-        workflow.add_node("prompt_doctors", self.prompt_doctors)
-        workflow.add_node("confirm_appointment", self.confirm_appointment)
         workflow.add_node("cancel_appointment", self.cancel_appointment)
-        workflow.add_node("process_cancel", self.process_cancel)
         workflow.add_node("check_appointment_status", self.check_appointment_status)
+        workflow.add_node("prompt_doctors", self.prompt_doctors)
         workflow.add_node("wrap_up", self.wrap_up)
         workflow.add_node("intro", self.intro)
         workflow.add_node("pause", self.pause)
@@ -1342,10 +1246,8 @@ Respond with only the intent label.
         workflow.add_conditional_edges("classify_intent", self._route_after_classify)
         workflow.add_conditional_edges("create_appointment", self._route_after_create_appointment)
         workflow.add_conditional_edges("edit_appointment", self._route_after_edit_appointment)
-        workflow.add_conditional_edges("prompt_doctors", self._route_after_prompt_doctors)
-        workflow.add_conditional_edges("confirm_appointment", self._route_after_confirm_appointment)
         workflow.add_conditional_edges("cancel_appointment", self._route_after_cancel_appointment)
-        workflow.add_conditional_edges("process_cancel", self._route_after_process_cancel)
+        workflow.add_conditional_edges("prompt_doctors", self._route_after_prompt_doctors)
         workflow.add_conditional_edges("check_appointment_status", self._route_after_check_appointment_status)
         workflow.add_conditional_edges("wrap_up", self._route_after_wrap_up)
         # workflow.add_conditional_edges("intro", "classify_intent")
