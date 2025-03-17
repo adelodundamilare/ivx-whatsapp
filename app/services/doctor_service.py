@@ -19,11 +19,11 @@ class DoctorService:
                 message_id='',
                 content="",
                 timestamp=datetime.now(),
-                business_phone_number_id="5551420530",
+                business_phone_number_id="551871334675111",
                 type="text"),
-            business_phone_number_id="5551420530")
+            business_phone_number_id="551871334675111")
 
-    async def init(self):
+    async def process(self):
         try:
             appointments = await bubble_client.find_unassigned_appointments()
             if len(appointments) < 1:
@@ -36,21 +36,21 @@ class DoctorService:
             # print(best_doctor, 'best_doctor')
             # message best doctor
             prompt = f"""
-            Hi {best_doctor.get('first_name')}, 😊
+Hi {best_doctor.get('full_name', '')}, 😊
 
-            I'm IVX, an AI assistant helping clinics connect with the right doctors for their patients.
+I'm IVX, an AI assistant helping clinics connect with the right doctors for their patients.
 
-            A clinic is requesting a patient booking for *{appointment.get('service_type')}*. Would you be available on *{appointment.get('date')}*?
+A clinic is requesting a patient booking for *{appointment.get('service_type')}* with booking code *{appointment.get('code')}*. Would you be available on *{appointment.get('date')}*?
 
-            Let me know if this works for you. ✅
-            """
+Let me know if this works for you. ✅
+"""
 
-            phone = best_doctor.get('phone')
-            response = await invoke_doctor_ai(prompt, phone)
+            phone = best_doctor.get('phone_number')
+            # response = await invoke_doctor_ai(prompt, phone)
 
             # update state, db too...
-            self.state_manager.update_state(phone, {"appointment": appointment})
-            await self.whatsapp_service.send_text_message(response)
+            self.state_manager.update_state(phone, {"appointment": appointment, "doctor": best_doctor})
+            await self.whatsapp_service.send_text_message(prompt)
         except Exception as e:
-            logger.error(f"Error in message processing: {str(e)}")
+            logger.error(f"Error in processing doctor request: {str(e)}")
             traceback.print_exc()

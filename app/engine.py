@@ -25,14 +25,11 @@ class AppointmentOrchestrator:
         try:
             user_phone = self.message.phone_number
 
-            try:
-                is_doctor = await bubble_client.is_doctor(user_phone)
+            is_doctor = await bubble_client.is_doctor(user_phone)
 
-                if is_doctor:
-                    assistant = DoctorAssistant(message=self.message)
-                    return await assistant.process_message(phone=user_phone, user_input=self.message.content)
-            except Exception as e:
-                logger.error(f"Error in message processing: {str(e)}")
+            if is_doctor:
+                assistant = DoctorAssistant(message=self.message)
+                return await assistant.process_message(phone=user_phone, user_input=self.message.content)
 
             clinic_assistant = ClinicAssistant(message=self.message)
             return await clinic_assistant.process_message(clinic_phone=user_phone, user_input=self.message.content)

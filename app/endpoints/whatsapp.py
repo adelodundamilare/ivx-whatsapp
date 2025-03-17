@@ -28,6 +28,7 @@ async def handle_webhook(request: Request, background_tasks: BackgroundTasks):
         message_type = messages.get("type")
 
         business_phone_number_id = value.get("metadata", {}).get("phone_number_id")
+        # print(business_phone_number_id, 'business_phone_number_id')
         if not message_type:
             return
 
@@ -100,7 +101,8 @@ async def verify_webhook(request: Request):
 @router.get("/get-doctor-approval")
 async def get_doctor_approval(request: Request):
     try:
-        await DoctorService().init()
+        doctor_service = DoctorService()
+        await doctor_service.process()
         # CRON RUNS EVERY 5MINS
         # fetch all appointments with status None
         # fetch all available doctors...
@@ -112,7 +114,6 @@ async def get_doctor_approval(request: Request):
         # if response is declined, find another doctor
         # if response is accepted, update appointment status and send a message to clinic...
         # RESPONSE IS ACCEPT OR DECLINE, DO NOTHING ELSE...
-        print('yello!')
     except Exception as e:
         logger.error(f"Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

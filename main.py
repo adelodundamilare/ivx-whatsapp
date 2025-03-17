@@ -26,9 +26,7 @@ app.add_exception_handler(Exception, global_exception_handler)
 app.add_exception_handler(RequestValidationError, global_exception_handler)
 
 # Include routers
-# app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(whatsapp.router, prefix="/whatsapp", tags=["whatsapp"])
-# app.include_router(utility.router, prefix="/utility", tags=["utility"])
 
 
 if __name__ == "__main__":

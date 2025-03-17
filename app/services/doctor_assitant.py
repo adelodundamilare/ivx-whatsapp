@@ -2,6 +2,7 @@
 
 from typing import Dict
 from app.models.models import ClinicState, Message
+from app.services.bubble_client import bubble_client
 from app.services.whatsapp import WhatsAppBusinessAPI
 from app.utils.doctor_state_manager import DoctorStateManager
 from app.utils.helpers import invoke_doctor_ai
@@ -24,6 +25,8 @@ class DoctorAssistant:
         self.message = message
         self.whatsapp_service = WhatsAppBusinessAPI(message)
         self.state_manager = DoctorStateManager()
+        self.user_input = message.content
+        self.doctor = self.state.get("doctor", {})
         self.graph = self._build_graph()
     @property
     def state(self):
@@ -46,10 +49,18 @@ class DoctorAssistant:
         return
 
     async def classify_intent(self, _: ClinicState):
-        print('calling classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-        state = self.state
-        user_input = state.get("user_input", "")
+        print('calling doctor classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        print(self.state, 'calling state classify_intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
         phone = self.message.phone_number
+        appointment = self.state.get("appointment", {})
+        doctor = self.state.get("doctor", {})
+        full_name = doctor.get("full_name")
+
+        if not appointment or not doctor:
+            prompt = f"We cannot process this request at the moment, please try again later."
+            await self.whatsapp_service.send_text_message(prompt, phone)
+            return
+
 
         prompt = f"""
 Identify the primary intent of the user's message.
@@ -61,22 +72,23 @@ Possible intents:
 - decline: User rejects the invite
 - other: Unknown
 
-User message: {user_input}
+
+User message: {self.user_input}
 
 Respond with only the intent label.
 """
         intent = await invoke_doctor_ai(prompt, phone)
-        print(intent, 'classify_intent intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+        print(intent, 'doctor classify_intent intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
 
         if intent == 'accept':
-            prompt = "Thank doctor for accepting the invite"
-            result = await invoke_doctor_ai(prompt, phone)
-            await self.whatsapp_service.send_text_message(result, phone)
+            prompt = f"Thank you, {full_name}, for accepting the invitation with booking code: {appointment.get('code')}. We look forward to working with you!"
+            data = {"status": "accepted", "assigned_doctor": doctor.get("_id")}
+            await bubble_client.update_appointment(id=appointment.get("_id"), data=data)
+            await self.whatsapp_service.send_text_message(prompt, phone)
 
         if intent == 'decline':
-            prompt = "Thank doctor for rejecting the invite"
-            result = await invoke_doctor_ai(prompt, phone)
-            await self.whatsapp_service.send_text_message(result, phone)
+            prompt = f"Thank you, {full_name}, for letting us know. We understand your decision and hope to collaborate in the future."
+            await self.whatsapp_service.send_text_message(prompt, phone)
 
         # ask again
         # prompt = "Ask doctor to clarify response and choose between accepting or rejecting the invite"
@@ -138,7 +150,7 @@ Respond with only the intent label.
         return workflow.compile()
 
     async def process_message(self, phone: str, user_input: str) -> str:
-        state = state_manager.get_state(phone)
+        state = self.state_manager.get_state(phone)
         state["user_input"] = user_input
         state["phone"] = phone
         state["needs_clarification"] = False
@@ -149,6 +161,5 @@ Respond with only the intent label.
             config={"configurable": {"session_id": phone}}
         ):
             logger.info(f"Node output: {output}")
-            # state_manager.clear_state(clinic_phone)
 
         return final_response or "Something went wrong. Please try again."
