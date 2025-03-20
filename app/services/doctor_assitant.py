@@ -82,9 +82,11 @@ Respond with only the intent label.
 
         if intent == 'accept':
             prompt = f"Thank you, {full_name}, for accepting the invitation with booking code: {appointment.get('code')}. We look forward to working with you!"
+            prompt_clinic = f"Your appointment with booking code: {appointment.get('code')} has been accepted."
             data = {"status": "accepted", "assigned_doctor": doctor.get("_id")}
             await bubble_client.update_appointment(id=appointment.get("_id"), data=data)
             await self.whatsapp_service.send_text_message(prompt, phone)
+            await self.whatsapp_service.send_text_message(prompt_clinic, appointment.get("phone_number"))
 
         if intent == 'decline':
             prompt = f"Thank you, {full_name}, for letting us know. We understand your decision and hope to collaborate in the future."

@@ -15,7 +15,7 @@ class DoctorService:
         self.state_manager = DoctorStateManager()
         self.whatsapp_service = WhatsAppBusinessAPI(
             message=Message(
-                phone_number="2348099868604",
+                phone_number="5214421728398",
                 message_id='',
                 content="",
                 timestamp=datetime.now(),
@@ -50,7 +50,8 @@ Let me know if this works for you. ✅
 
             # update state, db too...
             self.state_manager.update_state(phone, {"appointment": appointment, "doctor": best_doctor})
-            await self.whatsapp_service.send_text_message(prompt)
+            print('phone number', best_doctor.get('phone_number'))
+            await self.whatsapp_service.send_text_message(prompt, to_number=phone)
         except Exception as e:
             logger.error(f"Error in processing doctor request: {str(e)}")
             traceback.print_exc()

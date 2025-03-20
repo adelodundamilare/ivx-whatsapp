@@ -435,6 +435,7 @@ class WhatsAppBusinessAPI:
     async def _make_request(self, endpoint: str, payload: Dict) -> Dict:
         """Make HTTP request to WhatsApp API"""
         to_number = payload.get("to")
+        print(to_number, 'to_number')
         # if to_number != '2348099868604':
         #     payload["text"]['body'] = 'We are actively developing, please check back'
 
