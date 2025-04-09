@@ -849,6 +849,8 @@ valid_intents = {
     "edit_appointment": "edit_appointment",
     "cancel_appointment": "cancel_appointment",
     "check_appointment_status": "check_appointment_status",
+    "language_english": "language_english",
+    "language_spanish": "language_spanish",
     "greet": "greet",
 }
 # memory = ConversationBufferMemory()
@@ -925,6 +927,8 @@ Possible intents:
 - cancel_appointment: User wants to cancel an existing appointment
 - edit_appointment: User wants to change or update an existing appointment
 - check_appointment_status: User wants to check the status of an existing appointment
+- language_english: User indicates preference for English language
+- language_spanish: User indicates preference for Mexican Spanish language
 - greet: User is greeting the system
 - other: None of the above
 
@@ -934,6 +938,12 @@ Respond with only the intent label.
 """
         intent = await invoke_ai(prompt, clinic_phone)
         print(intent, 'classify_intent intent kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
+
+        if intent == "language_english":
+            return self._update_state({ "language": "english" })
+
+        if intent == "language_spanish":
+            return self._update_state({ "language": "spanish" })
 
         if intent in valid_intents:
             return self._update_state({

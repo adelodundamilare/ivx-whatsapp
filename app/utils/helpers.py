@@ -3,6 +3,7 @@ import re
 from typing import Dict
 from app.models.models import Message
 from app.services.whatsapp import WhatsAppBusinessAPI
+from app.utils.state_manager import StateManager
 from langchain_core.runnables.history import RunnableWithMessageHistory # type: ignore
 from langchain_community.chat_message_histories import ChatMessageHistory # type: ignore
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder # type: ignore
@@ -48,6 +49,12 @@ async def invoke_ai(prompt:str, clinic_phone:str):
     runnable = get_response_runnable(clinic_phone)
     history = get_message_history(clinic_phone)
     history.add_user_message(prompt)
+    language = "english"
+
+    state = StateManager().get_state(clinic_phone)
+
+    if state and "language" in state:
+        language = state["language"]
 
     input_data = {
         "system_message":  (
@@ -57,11 +64,17 @@ async def invoke_ai(prompt:str, clinic_phone:str):
     "Use the conversation history to maintain context and provide accurate, relevant responses. "
     "If any information is unclear or missing, ask friendly follow-up questions to confirm appointment details before proceeding. "
     "The typical flow includes: understanding the clinic's request, checking doctor availability, confirming details, and finalizing the booking. "
-    "Always maintain a professional and helpful tone."
-),
-        "input": prompt,
-        "history": history.messages
+    "Always maintain a professional and helpful tone. "
+    f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
+        f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
+    ),
+    "input": (
+        prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
+    ),
+    "history": history.messages
     }
+
+    print(input_data, 'input_data')
 
     response = await runnable.ainvoke(
         input_data,
@@ -73,6 +86,12 @@ async def invoke_doctor_ai(prompt:str, clinic_phone:str):
     runnable = get_response_runnable(clinic_phone)
     history = get_message_history(clinic_phone)
     history.add_user_message(prompt)
+    language = "english"
+
+    state = StateManager().get_state(clinic_phone)
+    if state and "language" in state:
+        language = state["language"]
+
 
     input_data = {
         "system_message":  (
@@ -80,10 +99,14 @@ async def invoke_doctor_ai(prompt:str, clinic_phone:str):
     "Your primary role is to help doctors review appointment requests, confirm availability, and either accept or decline bookings from clinics. "
     "If any information is unclear, politely ask for clarification. "
     "Maintain a professional and respectful tone when engaging with doctors, and ensure smooth communication throughout the process."
-    "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests."
-),
-        "input": prompt,
-        "history": history.messages
+    "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests. "
+    f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
+        f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
+    ),
+    "input": (
+        prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
+    ),
+    "history": history.messages
     }
 
     response = await runnable.ainvoke(
