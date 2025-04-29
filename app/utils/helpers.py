@@ -12,10 +12,18 @@ import os
 from dateutil import parser # type: ignore
 
 llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-3.5-turbo", temperature=0.7)
+language = "spanish"
 
+# response_prompt = ChatPromptTemplate.from_messages(
+#     [
+#         ("system", "You are AIA, a professional and friendly AI assistant helping clinics - the user - connect with doctors. Use the conversation history to maintain context. Respond conversationally to: '{input}'. Guide the user proactively with suggestions (e.g., 'Would you like to book an appointment?')."),
+#         MessagesPlaceholder(variable_name="chat_history"),
+#         ("human", "{input}"),
+#     ]
+# )
 response_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are AIA, a professional and friendly AI assistant helping clinics - the user - connect with doctors. Use the conversation history to maintain context. Respond conversationally to: '{input}'. Guide the user proactively with suggestions (e.g., 'Would you like to book an appointment?')."),
+        ("system", "Eres AIA, una asistente de IA profesional y amigable que ayuda a las clínicas —el usuario— a conectarse con doctores. Usa el historial de la conversación para mantener el contexto. Responde de forma conversacional a: '{input}'. Guía proactivamente al usuario con sugerencias (por ejemplo, '¿Te gustaría agendar una cita?')."),
         MessagesPlaceholder(variable_name="chat_history"),
         ("human", "{input}"),
     ]
@@ -49,7 +57,6 @@ async def invoke_ai(prompt:str, clinic_phone:str):
     runnable = get_response_runnable(clinic_phone)
     history = get_message_history(clinic_phone)
     history.add_user_message(prompt)
-    language = "english"
 
     state = StateManager().get_state(clinic_phone)
 
@@ -57,24 +64,40 @@ async def invoke_ai(prompt:str, clinic_phone:str):
         language = state["language"]
 
     input_data = {
-        "system_message":  (
-    "You are a warm and professional medical assistant designed to help clinics efficiently schedule, reschedule, edit, and manage doctor appointments. "
-    "Your role is to act as a bridge between clinics and doctors, streamlining the booking process while ensuring accuracy and smooth coordination. "
-    "Clinics are the primary users of this system, and you are here to assist them in finding available doctors, managing schedules, and handling patient requests. "
-    "Use the conversation history to maintain context and provide accurate, relevant responses. "
-    "If any information is unclear or missing, ask friendly follow-up questions to confirm appointment details before proceeding. "
-    "The typical flow includes: understanding the clinic's request, checking doctor availability, confirming details, and finalizing the booking. "
-    "Always maintain a professional and helpful tone. "
-    f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
-        f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
-    ),
-    "input": (
-        prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
-    ),
-    "history": history.messages
+        "system_message": (
+            "Eres una asistente médica cálida y profesional diseñada para ayudar a las clínicas a programar, reprogramar, editar y gestionar citas médicas de manera eficiente. "
+            "Tu función es actuar como un puente entre las clínicas y los doctores, agilizando el proceso de reservas mientras aseguras precisión y una coordinación fluida. "
+            "Las clínicas son los usuarios principales de este sistema, y estás aquí para ayudarlas a encontrar doctores disponibles, gestionar horarios y atender solicitudes de pacientes. "
+            "Utiliza el historial de la conversación para mantener el contexto y proporcionar respuestas precisas y relevantes. "
+            "Si falta información o hay algo poco claro, haz preguntas de seguimiento amables para confirmar los detalles antes de continuar. "
+            "El flujo típico incluye: entender la solicitud de la clínica, verificar la disponibilidad del doctor, confirmar los detalles y finalizar la cita. "
+            "Mantén siempre un tono profesional y servicial. "
+            f"IMPORTANTE: DEBES responder exclusivamente en {language.upper()}. Esto incluye saludos, instrucciones, confirmaciones y preguntas de seguimiento. "
+            f"No respondas en ningún otro idioma—ni siquiera parcialmente. Si la entrada del usuario está en otro idioma, continúa amablemente respondiendo en {language.upper()} mientras comprendes su intención."
+        ),
+        "input": (
+            prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
+        ),
+        "history": history.messages
     }
 
-    print(input_data, 'input_data')
+    # input_data = {
+    #     "system_message":  (
+    # "You are a warm and professional medical assistant designed to help clinics efficiently schedule, reschedule, edit, and manage doctor appointments. "
+    # "Your role is to act as a bridge between clinics and doctors, streamlining the booking process while ensuring accuracy and smooth coordination. "
+    # "Clinics are the primary users of this system, and you are here to assist them in finding available doctors, managing schedules, and handling patient requests. "
+    # "Use the conversation history to maintain context and provide accurate, relevant responses. "
+    # "If any information is unclear or missing, ask friendly follow-up questions to confirm appointment details before proceeding. "
+    # "The typical flow includes: understanding the clinic's request, checking doctor availability, confirming details, and finalizing the booking. "
+    # "Always maintain a professional and helpful tone. "
+    # f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
+    #     f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
+    # ),
+    # "input": (
+    #     prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
+    # ),
+    # "history": history.messages
+    # }
 
     response = await runnable.ainvoke(
         input_data,
@@ -86,27 +109,25 @@ async def invoke_doctor_ai(prompt:str, clinic_phone:str):
     runnable = get_response_runnable(clinic_phone)
     history = get_message_history(clinic_phone)
     history.add_user_message(prompt)
-    language = "english"
 
     state = StateManager().get_state(clinic_phone)
     if state and "language" in state:
         language = state["language"]
 
-
     input_data = {
-        "system_message":  (
-    "You are a warm and professional AI assistant designed to support doctors in managing their schedules and coordinating with clinics for patient appointments. "
-    "Your primary role is to help doctors review appointment requests, confirm availability, and either accept or decline bookings from clinics. "
-    "If any information is unclear, politely ask for clarification. "
-    "Maintain a professional and respectful tone when engaging with doctors, and ensure smooth communication throughout the process."
-    "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests. "
-    f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
-        f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
-    ),
-    "input": (
-        prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
-    ),
-    "history": history.messages
+        "system_message": (
+            "Eres una asistente de IA cálida y profesional diseñada para apoyar a los doctores en la gestión de sus horarios y la coordinación con clínicas para citas de pacientes. "
+            "Tu función principal es ayudar a los doctores a revisar solicitudes de citas, confirmar disponibilidad y aceptar o rechazar reservas realizadas por clínicas. "
+            "Si alguna información no está clara, pide amablemente una aclaración. "
+            "Mantén un tono profesional y respetuoso al interactuar con los doctores, y asegúrate de que la comunicación sea fluida durante todo el proceso. "
+            "Ten en cuenta que, como doctor, no puedes crear ni gestionar citas, solo puedes confirmar disponibilidad ante solicitudes de clínicas. "
+            f"IMPORTANTE: DEBES responder exclusivamente en {language.upper()}. Esto incluye saludos, instrucciones, confirmaciones y preguntas de seguimiento. "
+            f"No respondas en ningún otro idioma —ni siquiera parcialmente—. Si la entrada del usuario está en otro idioma, continúa amablemente respondiendo en {language.upper()} mientras comprendes su intención."
+        ),
+        "input": (
+            prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
+        ),
+        "history": history.messages
     }
 
     response = await runnable.ainvoke(
@@ -120,85 +141,6 @@ async def send_response(clinic_phone: str, response_message: str, message: Messa
     history.add_ai_message(response_message)
     whatsapp_service = WhatsAppBusinessAPI(message)
     await whatsapp_service.send_text_message(to_number=clinic_phone, message=response_message)
-
-# def parse_relative_date(date_expression):
-#     date_expression = date_expression.lower().strip()
-#     current_date = datetime.now()
-
-#     try:
-#         for fmt in ['%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d', '%Y/%m/%d']:
-#             try:
-#                 return datetime.strptime(date_expression, fmt)
-#             except ValueError:
-#                 continue
-#     except ValueError:
-#         pass
-
-#     if date_expression == 'today':
-#         return current_date
-#     elif date_expression == 'tomorrow':
-#         return current_date + timedelta(days=1)
-#     elif date_expression == 'yesterday':
-#         return current_date - timedelta(days=1)
-
-#     month_pattern = r'(?:(\d+)(?:st|nd|rd|th))?\s*(next|last)\s+month'
-#     month_match = re.match(month_pattern, date_expression)
-#     if month_match:
-#         day, direction = month_match.groups()
-
-#         if direction == 'next':
-#             new_date = current_date + relativedelta(months=1)
-#         else:
-#             new_date = current_date - relativedelta(months=1)
-
-#         if day:
-#             day = int(day)
-#             max_day = calendar.monthrange(new_date.year, new_date.month)[1]
-#             day = min(day, max_day)
-#             return new_date.replace(day=day)
-
-#         return new_date
-
-#     days = {
-#         'monday': 0, 'tuesday': 1, 'wednesday': 2, 'thursday': 3,
-#         'friday': 4, 'saturday': 5, 'sunday': 6
-#     }
-
-#     pattern = r'(next|last)?\s*(\w+)(?:\s+(next|last)\s+week)?'
-#     match = re.match(pattern, date_expression)
-
-#     if not match:
-#         raise ValueError(f"Unable to parse date expression: {date_expression}")
-
-#     prefix, day, week_modifier = match.groups()
-
-#     if day not in days:
-#         raise ValueError(f"Invalid day of week: {day}")
-
-#     target_day = days[day]
-#     current_day = current_date.weekday()
-
-#     days_until = (target_day - current_day) % 7
-
-#     if prefix == 'last' or week_modifier == 'last':
-#         if days_until == 0:
-#             days_until = -7
-#         else:
-#             days_until = days_until - 7
-#     elif prefix == 'next' or week_modifier == 'next':
-#         if days_until == 0:
-#             days_until = 7
-#         else:
-#             days_until = days_until + 7
-#     else:
-#         if days_until == 0:
-#             days_until = 7
-
-#     return current_date + timedelta(days=days_until)
-
-# def format_date(date):
-#     return date.strftime("%Y-%m-%d")
-
 
 def validate_date(date_str: str) -> bool:
     date_str = date_str.strip()
@@ -243,7 +185,6 @@ def validate_time(time_str: str) -> bool:
         return True
 
     return False
-
 
 def validate_and_parse_date(date_input):
     today = datetime.now().date()
