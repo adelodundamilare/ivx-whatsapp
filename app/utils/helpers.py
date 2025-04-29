@@ -59,6 +59,7 @@ async def invoke_ai(prompt:str, clinic_phone:str):
     history.add_user_message(prompt)
 
     state = StateManager().get_state(clinic_phone)
+    language = "spanish"
 
     if state and "language" in state:
         language = state["language"]
@@ -111,9 +112,26 @@ async def invoke_doctor_ai(prompt:str, clinic_phone:str):
     history.add_user_message(prompt)
 
     state = StateManager().get_state(clinic_phone)
+    language = "spanish"
     if state and "language" in state:
         language = state["language"]
 
+
+    # input_data = {
+    #     "system_message":  (
+    # "You are a warm and professional AI assistant designed to support doctors in managing their schedules and coordinating with clinics for patient appointments. "
+    # "Your primary role is to help doctors review appointment requests, confirm availability, and either accept or decline bookings from clinics. "
+    # "If any information is unclear, politely ask for clarification. "
+    # "Maintain a professional and respectful tone when engaging with doctors, and ensure smooth communication throughout the process."
+    # "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests. "
+    # f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
+    #     f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
+    # ),
+    # "input": (
+    #     prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
+    # ),
+    # "history": history.messages
+    # }
     input_data = {
         "system_message": (
             "Eres una asistente de IA cálida y profesional diseñada para apoyar a los doctores en la gestión de sus horarios y la coordinación con clínicas para citas de pacientes. "
