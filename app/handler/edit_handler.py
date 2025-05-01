@@ -160,7 +160,12 @@ Respond with only the intent label.
             appointment = await self._extract_entities()
             self._update_state_expect_resp(**{"appointment":appointment, "confirmation_status":"PENDING"})
 
-        prompt = f"""
+        state = self.state
+        language = "spanish"
+        if state and "language" in state:
+            language = state["language"]
+
+        res_en = f"""
 Here is the appointment summary:
 
 - 📅 Date: {appointment.get("date")}
@@ -174,6 +179,23 @@ Here is the appointment summary:
 
 Could you please confirm if these details are correct or let me know what you'd like to change? 😊
 """
+
+        res_sp = f"""
+Aquí tienes el resumen de la cita:
+
+- 📅 Fecha: {appointment.get("date")}
+- 🕒 Hora: {appointment.get("time")}
+- 🏥 Tipo de procedimiento: {appointment.get("service_type")}
+- 👤 Nombre del paciente: {appointment.get("patient_name")}
+- 📝 Edad del paciente: {appointment.get("patient_age_range")}
+- 📍 Lugar de la cita: {appointment.get("location")}
+- ⚧️ Género del paciente: {appointment.get("patient_gender")}
+- 📝 Nota adicional: {appointment.get("additional_note")}
+
+¿Podrías confirmar si estos datos son correctos o decirme qué te gustaría cambiar? 😊
+"""
+
+        prompt = res_sp if language.lower() == "spanish" else res_en
         await self._send_response(self.clinic_phone, prompt)
         return self._update_state_expect_resp(**{"appointment":appointment, "confirmation_status":"PENDING"})
 

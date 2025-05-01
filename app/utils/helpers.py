@@ -117,22 +117,21 @@ async def invoke_doctor_ai(prompt:str, clinic_phone:str):
         language = state["language"]
 
 
-    # input_data = {
-    #     "system_message":  (
-    # "You are a warm and professional AI assistant designed to support doctors in managing their schedules and coordinating with clinics for patient appointments. "
-    # "Your primary role is to help doctors review appointment requests, confirm availability, and either accept or decline bookings from clinics. "
-    # "If any information is unclear, politely ask for clarification. "
-    # "Maintain a professional and respectful tone when engaging with doctors, and ensure smooth communication throughout the process."
-    # "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests. "
-    # f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
-    #     f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
-    # ),
-    # "input": (
-    #     prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
-    # ),
-    # "history": history.messages
-    # }
-    input_data = {
+    input_data_en = {
+        "system_message":  (
+    "You are a warm and professional AI assistant designed to support doctors in managing their schedules and coordinating with clinics for patient appointments. "
+    "Your primary role is to help doctors review appointment requests, confirm availability, and either accept or decline bookings from clinics. "
+    "If any information is unclear, politely ask for clarification. "
+    "Maintain a professional and respectful tone when engaging with doctors, and ensure smooth communication throughout the process."
+    "Please note as a doctor, you cannot create or manage appointments, you can only confirm availability for clinic's requests. "
+    f"IMPORTANT: You MUST respond exclusively in {language.upper()}. This includes greetings, instructions, confirmations, and follow-up questions. "
+        f"Do NOT respond in any other language—even partially. If the user's input is in another language, politely continue replying in {language.upper()} while understanding their intent."
+    ),
+    "input": prompt,
+    "history": history.messages
+    }
+
+    input_data_sp = {
         "system_message": (
             "Eres una asistente de IA cálida y profesional diseñada para apoyar a los doctores en la gestión de sus horarios y la coordinación con clínicas para citas de pacientes. "
             "Tu función principal es ayudar a los doctores a revisar solicitudes de citas, confirmar disponibilidad y aceptar o rechazar reservas realizadas por clínicas. "
@@ -142,11 +141,11 @@ async def invoke_doctor_ai(prompt:str, clinic_phone:str):
             f"IMPORTANTE: DEBES responder exclusivamente en {language.upper()}. Esto incluye saludos, instrucciones, confirmaciones y preguntas de seguimiento. "
             f"No respondas en ningún otro idioma —ni siquiera parcialmente—. Si la entrada del usuario está en otro idioma, continúa amablemente respondiendo en {language.upper()} mientras comprendes su intención."
         ),
-        "input": (
-            prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"
-        ),
+        "input": (prompt if language.lower() == "english" else f"Por favor responde en {language.capitalize()}: {prompt}"),
         "history": history.messages
     }
+
+    input_data= input_data_sp if language.lower() == "spanish" else input_data_en
 
     response = await runnable.ainvoke(
         input_data,

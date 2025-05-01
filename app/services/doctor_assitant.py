@@ -92,18 +92,6 @@ Respond with only the intent label.
             prompt = f"Thank you, {full_name}, for letting us know. We understand your decision and hope to collaborate in the future."
             await self.whatsapp_service.send_text_message(prompt, phone)
 
-        # ask again
-        # prompt = "Ask doctor to clarify response and choose between accepting or rejecting the invite"
-        # result = await invoke_doctor_ai(prompt, phone)
-        # await self.whatsapp_service.send_text_message(result, phone)
-
-    # Routing Functions
-    # def _route_after_greet(self, _: ClinicState) -> str:
-    #     print('calling _route_after_greet kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')
-    #     state = self.state
-    #     if state.get("needs_clarification", False):
-    #         return END
-    #     return END
 
     def _route_after_classify(self, _: ClinicState) -> str:
         print('calling _route_after_classify kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk')

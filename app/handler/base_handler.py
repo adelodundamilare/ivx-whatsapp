@@ -168,7 +168,12 @@ Respond with only the intent label.
 """
 
     def _get_appointment_summary_prompt(self, appointment):
-        return f"""
+        state = self.state
+        language = "spanish"
+        if state and "language" in state:
+            language = state["language"]
+
+        res_en = f"""
 Here is the appointment summary:
 
 - 📅 Date: {appointment.get("date")}
@@ -182,6 +187,23 @@ Here is the appointment summary:
 
 Could you please confirm if these details are correct or let me know what you'd like to change? 😊
 """
+
+        res_sp = f"""
+Aquí tienes el resumen de la cita:
+
+- 📅 Fecha: {appointment.get("date")}
+- 🕒 Hora: {appointment.get("time")}
+- 🏥 Tipo de procedimiento: {appointment.get("service_type")}
+- 👤 Nombre del paciente: {appointment.get("patient_name")}
+- 📝 Edad del paciente: {appointment.get("patient_age_range")}
+- 📍 Lugar de la cita: {appointment.get("location")}
+- ⚧️ Género del paciente: {appointment.get("patient_gender")}
+- 📝 Nota adicional: {appointment.get("additional_note")}
+
+¿Podrías confirmar si estos datos son correctos o decirme qué te gustaría cambiar? 😊
+"""
+
+        return res_sp if language.lower() == "spanish" else res_en
 
     async def _save_data(self, appointment):
         try:
